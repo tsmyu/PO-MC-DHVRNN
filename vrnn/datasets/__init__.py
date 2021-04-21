@@ -17,6 +17,7 @@ class GeneralDataset(Dataset):
         self.game_files_te = args.game_files_te
         self.batchsize = args.batchsize
         self.model = args.model
+        self.n_GorS = args.n_GorS
 
         #self.normalize_data = normalize_data
         #self.datasets = args.dataset
@@ -28,7 +29,7 @@ class GeneralDataset(Dataset):
             with open(self.game_files+'_tr'+str(batch_no)+'.pkl', 'rb') as f:
                 data,_,_,label = cloudpickle.load(f) # ,allow_pickle=True
         else:
-            J = 8
+            J = 4 if self.n_GorS == 1 else 8
             batch_no = index // int(self.len_seqs/J)
             if batch_no < J:
                 batch_index = index % int(self.len_seqs/J)

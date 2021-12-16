@@ -1,5 +1,11 @@
 # preprocessing.py
-import glob, os, sys, math, warnings, copy, time
+import glob
+import os
+import sys
+import math
+import warnings
+import copy
+import time
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -14,9 +20,11 @@ from sequencing import subsample_sequence
 # ================================================================================================
 # remove_non_eleven ==============================================================================
 # ================================================================================================
-def remove_non_eleven(events_df, event_length_th,n_pl, verbose=False):
-    df = events_df.copy() # shape [frames x 8 columns] 
-    # playbyplay moments  visitor orig_events  start_time_left home  quarter  end_time_left  
+
+
+def remove_non_eleven(events_df, event_length_th, n_pl, verbose=False):
+    df = events_df.copy()  # shape [frames x 8 columns]
+    # playbyplay moments  visitor orig_events  start_time_left home  quarter  end_time_left
     if n_pl == 5:
         home_id = df.loc[0]['home']['teamid']
         away_id = df.loc[0]['visitor']['teamid']
@@ -24,7 +32,7 @@ def remove_non_eleven(events_df, event_length_th,n_pl, verbose=False):
         home_id = []
         away_id = []
 
-    def remove_non_eleven_(moments, event_length_th,n_pl, verbose=False):
+    def remove_non_eleven_(moments, event_length_th, n_pl, verbose=False):
         ''' Go through each moment, when encounters balls not present on court,
             or less than 10 players, discard these moments and then chunk the following moments 
             to as another event.
@@ -45,16 +53,17 @@ def remove_non_eleven(events_df, event_length_th,n_pl, verbose=False):
         # looping through each moment
         for i in range(len(moments)):
             # get moment dimension
-            if n_pl == 5 :
-                moment_dim = len(moments[i][5]) # [player&ball][5-dims]
-                accurate_dim = 11 # 1 bball + 10 players 
-            else : # soccer
-                moment_dim = len(moments[i][0]) # 46-dims
+            if n_pl == 5:
+                moment_dim = len(moments[i][5])  # [player&ball][5-dims]
+                accurate_dim = 11  # 1 bball + 10 players
+            else:  # soccer
+                moment_dim = len(moments[i][0])  # 46-dims
                 accurate_dim = 46
-            
-            if moment_dim == accurate_dim: 
-                segment.append(moments[i]) # less than ten players or basketball is not on the court
-                
+
+            if moment_dim == accurate_dim:
+                # less than ten players or basketball is not on the court
+                segment.append(moments[i])
+
             else:
                 # only grab these satisfy the length threshold
                 if len(segment) >= event_length_th:
@@ -65,11 +74,12 @@ def remove_non_eleven(events_df, event_length_th,n_pl, verbose=False):
         # grab the last one
         if len(segment) >= event_length_th:
             segments.append(segment)
-        if False: # len(segments) == 0:
+        if False:  # len(segments) == 0:
             print('Warning: Zero length event returned')
         return segments
     # process for each event (row)
-    df['chunked_moments'] = df.moments.apply(lambda m: remove_non_eleven_(m, event_length_th, n_pl, verbose))
+    df['chunked_moments'] = df.moments.apply(
+        lambda m: remove_non_eleven_(m, event_length_th, n_pl, verbose))
     # in case there's zero length event
     df = df[df['chunked_moments'].apply(lambda e: len(e)) != 0]
     df['chunked_moments'] = df['chunked_moments'].apply(lambda e: e[0])
@@ -78,67 +88,75 @@ def remove_non_eleven(events_df, event_length_th,n_pl, verbose=False):
 # ================================================================================================
 # remove_outlier ================================================================================
 # ================================================================================================
+
+
 def remove_outlier(events_df, n_pl, verbose=False):
-    df = events_df.copy() 
+    df = events_df.copy()
     len_before = len(df['moments'])
 
     def remove_outlier_(moments, n_pl, verbose=False):
         segments = []
         # ballxyz= moments[i][5][0][2:4] # [0]:ball(2-4:3dim), [1-10]:ball(2-3:2dim)
-        pl_vxy = moments[:,506:526]
-        bl_vxy = moments[:,526:528]
+        pl_vxy = moments[:, 506:526]
+        bl_vxy = moments[:, 526:528]
 
         bl_v = np.sqrt((bl_vxy**2).sum(axis=1))
         pl_v = [[] for _ in range(n_pl)]
         for pl in range(n_pl):
-            pl_v[pl] = np.sqrt((pl_vxy[:,pl*2:pl*2+2]**2).sum(axis=1))
+            pl_v[pl] = np.sqrt((pl_vxy[:, pl*2:pl*2+2]**2).sum(axis=1))
         max_pl_v = np.max(np.vstack(pl_v))
 
-        if np.max(bl_v) < 20 and max_pl_v < 13: 
-            segments.append(moments) 
-        return segments # , outlier
-    
-    df['chunked_moments'] = df.moments.apply(lambda m: remove_outlier_(m, n_pl, verbose))
+        if np.max(bl_v) < 20 and max_pl_v < 13:
+            segments.append(moments)
+        return segments  # , outlier
+
+    df['chunked_moments'] = df.moments.apply(
+        lambda m: remove_outlier_(m, n_pl, verbose))
 
     # in case there's zero length event
     df = df[df['chunked_moments'].apply(lambda e: len(e)) != 0]
     df['chunked_moments'] = df['chunked_moments'].apply(lambda e: e[0])
     len_after = len(df['chunked_moments'])
-    outlier = len_before - len_after 
-    
+    outlier = len_before - len_after
+
     return df['chunked_moments'].values, outlier
 
 # ================================================================================================
 # filters ================================================================================
 # ================================================================================================
-def filters(events_df,fs):
-    order = 2 # order of the filter
-    Nq = 1/(2*fs) # Nyquist frequency (Hz)  
-    fp = 2 # low pass frequency (Hz)         
+
+
+def filters(events_df, fs):
+    order = 2  # order of the filter
+    Nq = 1/(2*fs)  # Nyquist frequency (Hz)
+    fp = 2  # low pass frequency (Hz)
     b, a = signal.butter(order, fp/Nq, 'low', analog=False)
 
     df = events_df.copy()
     data_list = []
 
-    for m in df.moments: # moments[seq][time][feature]
-        data0 = np.zeros((len(m),len(m[0]))) # time, feature
-        for i in range(len(m)): # time length
-            data0[i,:] = m[i]
-        
-        data_filt = signal.filtfilt(b, a, data0, axis=0) 
+    for m in df.moments:  # moments[seq][time][feature]
+        data0 = np.zeros((len(m), len(m[0])))  # time, feature
+        for i in range(len(m)):  # time length
+            data0[i, :] = m[i]
+
+        data_filt = signal.filtfilt(b, a, data0, axis=0)
 
         data_list0 = []
-        for i in range(len(m)): # time length
-            data_list0.append(data_filt[i,:])  
-        data_list.append(data_list0)    
+        for i in range(len(m)):  # time length
+            data_list0.append(data_filt[i, :])
+        data_list.append(data_list0)
 
-    return data_list 
+    return data_list
 
 # ================================================================================================
 # chunk_shotclock ================================================================================
 # ================================================================================================
+
+
 def chunk_shotclock(events_df, event_length_th, verbose=False):
     df = events_df.copy()
+
     def chunk_shotclock_(moments, event_length_th, verbose):
         ''' When encounters ~24secs or game stops, chunk the moment to another event.
             shot clock test:
@@ -183,7 +201,7 @@ def chunk_shotclock(events_df, event_length_th, verbose=False):
             except Exception as e:
                 # not forget the last valid moment before None value
                 if current_shot_clock_i != None:
-                    segment.append(moments[i])    
+                    segment.append(moments[i])
                 if len(segment) >= event_length_th:
                     segments.append(segment)
                 # reset the segment to empty list
@@ -191,13 +209,14 @@ def chunk_shotclock(events_df, event_length_th, verbose=False):
 
         # grab the last one
         if len(segment) >= event_length_th:
-            segments.append(segment)            
-        if False: # len(segments) == 0:
+            segments.append(segment)
+        if False:  # len(segments) == 0:
             print('Warning: Zero length event returned')
         return segments
-    
+
     # process for each event (row)
-    df['chunked_moments'] = df.moments.apply(lambda m: chunk_shotclock_(m, event_length_th, verbose))
+    df['chunked_moments'] = df.moments.apply(
+        lambda m: chunk_shotclock_(m, event_length_th, verbose))
     # in case there's zero length event
     df = df[df['chunked_moments'].apply(lambda e: len(e)) != 0]
     df['chunked_moments'] = df['chunked_moments'].apply(lambda e: e[0])
@@ -209,6 +228,7 @@ def chunk_shotclock(events_df, event_length_th, verbose=False):
 # ================================================================================================
 def chunk_halfcourt(events_df, event_length_th, n_pl, verbose=False):
     df = events_df.copy()
+
     def chunk_halfcourt_(moments, event_length_th, n_pl, verbose):
         ''' Discard any plays that are not single sided. When the play switches 
             court withhin one event, we chunk it to be as another event
@@ -216,9 +236,9 @@ def chunk_halfcourt(events_df, event_length_th, n_pl, verbose=False):
 
         # NBA court size 94 by 50 feet
         if n_pl == 5:
-            half_court = 94/2. #np.array([], dtype='float') # feet
+            half_court = 94/2.  # np.array([], dtype='float') # feet
         else:
-            half_court = 105/2. # m
+            half_court = 105/2.  # m
         cleaned = []
 
         # remove any moments where two teams are not playing at either side of the court
@@ -226,18 +246,20 @@ def chunk_halfcourt(events_df, event_length_th, n_pl, verbose=False):
             # the x coordinates is on the 3rd or 2 ind of the matrix,
             # the first and second is team_id and player_id
             if n_pl == 5:
-                a = 5 # index of data
-                team1x = np.array(i[a])[1:6, :][:, 2]    # player data starts from 1, 0 ind is bball
+                a = 5  # index of data
+                # player data starts from 1, 0 ind is bball
+                team1x = np.array(i[a])[1:6, :][:, 2]
                 team2x = np.array(i[a])[6:11, :][:, 2]
-            else: # soccer
-                a = 0 # index of data
-                team1x = np.array(i[a])[1:6, :][:, 2]    # player data starts from 1, 0 ind is bball
+            else:  # soccer
+                a = 0  # index of data
+                # player data starts from 1, 0 ind is bball
+                team1x = np.array(i[a])[1:6, :][:, 2]
                 team2x = np.array(i[a])[6:11, :][:, 2]
 
             # if both team are on the left court:
-            if sum(team1x <= half_court)==5 and sum(team2x <= half_court)==5:
+            if sum(team1x <= half_court) == 5 and sum(team2x <= half_court) == 5:
                 cleaned.append(i)
-            elif sum(team1x >= half_court)==5 and sum(team2x >= half_court)==5:
+            elif sum(team1x >= half_court) == 5 and sum(team2x >= half_court) == 5:
                 cleaned.append(i)
 
         # if teamns playing court changed during same list of moments,
@@ -259,13 +281,14 @@ def chunk_halfcourt(events_df, event_length_th, n_pl, verbose=False):
                 segment = []
         # grab the last one
         if len(segment) >= event_length_th:
-            segments.append(segment)            
-        if False: # len(segments) == 0:
+            segments.append(segment)
+        if False:  # len(segments) == 0:
             print('Warning: Zero length event returned')
         return segments
-    
+
     # process for each event (row)
-    df['chunked_moments'] = df.moments.apply(lambda m: chunk_halfcourt_(m, event_length_th, n_pl, verbose))
+    df['chunked_moments'] = df.moments.apply(
+        lambda m: chunk_halfcourt_(m, event_length_th, n_pl, verbose))
     # in case there's zero length event
     df = df[df['chunked_moments'].apply(lambda e: len(e)) != 0]
     df['chunked_moments'] = df['chunked_moments'].apply(lambda e: e[0])
@@ -275,9 +298,10 @@ def chunk_halfcourt(events_df, event_length_th, n_pl, verbose=False):
 # ================================================================================================
 # reorder_teams ==================================================================================
 # ================================================================================================
-def reorder_teams(events_df, game_id,n_pl):
+def reorder_teams(events_df, game_id, n_pl):
     df = events_df.copy()
-    def reorder_teams_(input_moments, game_id,n_pl):
+
+    def reorder_teams_(input_moments, game_id, n_pl):
         ''' 1) the matrix always lays as home top and away bot VERIFIED
             2) the court index indicate which side the top team (home team) defends VERIFIED
 
@@ -290,16 +314,17 @@ def reorder_teams(events_df, game_id,n_pl):
         if n_pl == 5:
             court_index = pd.read_csv('./meta_data/court_index.csv')
             full_court = 94.
-        #else: # soccer
+        # else: # soccer
 
-        court_index = dict(zip(court_index.game_id, court_index.court_position))
+        court_index = dict(
+            zip(court_index.game_id, court_index.court_position))
 
-        half_court = full_court/2. # feet
+        half_court = full_court/2.  # feet
         home_defense = court_index[int(game_id)]
         moments = copy.deepcopy(input_moments)
         for i in range(len(moments)):
-            home_moment_x = np.array(moments[i][5])[1:6,2]
-            away_moment_x = np.array(moments[i][5])[6:11,2]
+            home_moment_x = np.array(moments[i][5])[1:6, 2]
+            away_moment_x = np.array(moments[i][5])[6:11, 2]
             quarter = moments[i][0]
             # if the home team's basket is on the left
             if home_defense == 0:
@@ -307,7 +332,7 @@ def reorder_teams(events_df, game_id,n_pl):
                 if quarter <= 2:
                     # if the home team is over half court, this means they are doing offense
                     # and the away team is defending, so switch the away team to top
-                    if sum(home_moment_x>=half_court)==5 and sum(away_moment_x>=half_court)==5:
+                    if sum(home_moment_x >= half_court) == 5 and sum(away_moment_x >= half_court) == 5:
                         moments[i][5][1:6], moments[i][5][6:11] = moments[i][5][6:11], moments[i][5][1:6]
                         for l in moments[i][5][1:6]:
                             l[2] = full_court - l[2]
@@ -315,12 +340,12 @@ def reorder_teams(events_df, game_id,n_pl):
                             l[2] = full_court - l[2]
                         # also normalize the bball x location
                         moments[i][5][0][2] = full_court - moments[i][5][0][2]
-                # second half game      
-                elif quarter > 2: # second half game, 3,4 quarter
+                # second half game
+                elif quarter > 2:  # second half game, 3,4 quarter
                     # now the home actually gets switch to the other court
-                    if sum(home_moment_x<=half_court)==5 and sum(away_moment_x<=half_court)==5:
+                    if sum(home_moment_x <= half_court) == 5 and sum(away_moment_x <= half_court) == 5:
                         moments[i][5][1:6], moments[i][5][6:11] = moments[i][5][6:11], moments[i][5][1:6]
-                    elif sum(home_moment_x>=half_court)==5 and sum(away_moment_x>=half_court)==5:
+                    elif sum(home_moment_x >= half_court) == 5 and sum(away_moment_x >= half_court) == 5:
                         for l in moments[i][5][1:6]:
                             l[2] = full_court - l[2]
                         for l in moments[i][5][6:11]:
@@ -334,18 +359,18 @@ def reorder_teams(events_df, game_id,n_pl):
                 if quarter <= 2:
                     # if the home team is over half court, this means they are doing offense
                     # and the away team is defending, so switch the away team to top
-                    if sum(home_moment_x<=half_court)==5 and sum(away_moment_x<=half_court)==5:
+                    if sum(home_moment_x <= half_court) == 5 and sum(away_moment_x <= half_court) == 5:
                         moments[i][5][1:6], moments[i][5][6:11] = moments[i][5][6:11], moments[i][5][1:6]
-                    elif sum(home_moment_x>=half_court)==5 and sum(away_moment_x>=half_court)==5:
+                    elif sum(home_moment_x >= half_court) == 5 and sum(away_moment_x >= half_court) == 5:
                         for l in moments[i][5][1:6]:
                             l[2] = full_court - l[2]
                         for l in moments[i][5][6:11]:
                             l[2] = full_court - l[2]
                         moments[i][5][0][2] = full_court - moments[i][5][0][2]
-                # second half game      
-                elif quarter > 2: # second half game, 3,4 quarter
+                # second half game
+                elif quarter > 2:  # second half game, 3,4 quarter
                     # now the home actually gets switch to the other court
-                    if sum(home_moment_x>=half_court)==5 and sum(away_moment_x>=half_court)==5:
+                    if sum(home_moment_x >= half_court) == 5 and sum(away_moment_x >= half_court) == 5:
                         moments[i][5][1:6], moments[i][5][6:11] = moments[i][5][6:11], moments[i][5][1:6]
                         for l in moments[i][5][1:6]:
                             l[2] = full_court - l[2]
@@ -367,23 +392,25 @@ def split_testdata_basket(events_df, game_id):
     moments_te = []
     qs = []
 
-    for m in df.moments.values: # length: segments
+    for m in df.moments.values:  # length: segments
         ''' split dataset into train and test data
             test: fourth quarther, train: otherwise    
 
             input_moments: A list moments
             game_id: str of the game id
         '''
-        quarter = m[1][0] 
+        quarter = m[1][0]
         if quarter == 4:
             moments_te.append(m)
         else:
             moments_tr.append(m)
         qs.append(quarter)
 
-    return moments_tr,moments_te
+    return moments_tr, moments_te
 
-def process_game_data(Data, game_ids, args): # event_threshold, subsample_factor,dataset,n_roles):
+
+# event_threshold, subsample_factor,dataset,n_roles):
+def process_game_data(Data, game_ids, args):
     def process_game_data_(game_id, events_df, args):
         event_threshold = args.event_threshold
         subsample_factor = args.subsample_factor
@@ -392,7 +419,7 @@ def process_game_data(Data, game_ids, args): # event_threshold, subsample_factor
         normalize = args.normalize
         filter = args.filter
         velocity = args.velocity
-            
+
         if dataset == 'nba':
             n_pl = 5
             fs = 1/25.
@@ -401,92 +428,99 @@ def process_game_data(Data, game_ids, args): # event_threshold, subsample_factor
             fs = 1/10.
 
         # remove non elevens
-        result, _ = remove_non_eleven(events_df, event_threshold,n_pl)
-        df = pd.DataFrame({'moments': result}) # list: maybe segments*frames*data (e.g. 263*150*6)
+        result, _ = remove_non_eleven(events_df, event_threshold, n_pl)
+        # list: maybe segments*frames*data (e.g. 263*150*6)
+        df = pd.DataFrame({'moments': result})
 
-        if dataset == 'nba': # only basketball
+        if dataset == 'nba':  # only basketball
             # chunk based on shot clock, Nones or stopped timer
             result = chunk_shotclock(df, event_threshold)
-            df = pd.DataFrame({'moments': result}) # list: maybe segments*frames*data (e.g. 106*352*6)
+            # list: maybe segments*frames*data (e.g. 106*352*6)
+            df = pd.DataFrame({'moments': result})
 
         # chunk based on half court and normalize to all half court
         if dataset != 'soccer':
-            result = chunk_halfcourt(df, event_threshold,n_pl)
-            df = pd.DataFrame({'moments': result}) # list: maybe segments*frames*data (e.g. 80*261*6)
+            result = chunk_halfcourt(df, event_threshold, n_pl)
+            # list: maybe segments*frames*data (e.g. 80*261*6)
+            df = pd.DataFrame({'moments': result})
         # the direction of attacking soccer data is positive(x)
 
         # reorder team matrix s.t. the first five players are always defend side players
         if dataset != 'soccer':
-            result = reorder_teams(df, game_id,n_pl)
-            df = pd.DataFrame({'moments': result}) # list: the same above
+            result = reorder_teams(df, game_id, n_pl)
+            df = pd.DataFrame({'moments': result})  # list: the same above
 
         # split into train and test data (added) ----------------------------------------------------------
-        if dataset == 'nba': 
-            result_tr,result_te = split_testdata_basket(df, game_id) 
-            df_tr = pd.DataFrame({'moments': result_tr}) # list: the same above        
+        if dataset == 'nba':
+            result_tr, result_te = split_testdata_basket(df, game_id)
+            # list: the same above
+            df_tr = pd.DataFrame({'moments': result_tr})
             df_te = pd.DataFrame({'moments': result_te})
             # print(len(df_tr['moments']),' + ',len(df_te['moments']))
         elif dataset == 'soccer':
             df_tr = df
             df_te = []
 
-        # features 
+        # features
         # flatten data
-        if dataset == 'nba': 
-            result_tr, team_ids_tr = flatten_moments(df_tr,normalize) # [seq:np.ndarray][t:list][26-dim]
-            result_te, team_ids_te = flatten_moments(df_te,normalize)
-            df_tr = pd.DataFrame({'moments': result_tr}) # list: [seqs][t][23-dim]
-            df_te = pd.DataFrame({'moments': result_te}) 
+        if dataset == 'nba':
+            result_tr, team_ids_tr = flatten_moments(
+                df_tr, normalize)  # [seq:np.ndarray][t:list][26-dim]
+            result_te, team_ids_te = flatten_moments(df_te, normalize)
+            # list: [seqs][t][23-dim]
+            df_tr = pd.DataFrame({'moments': result_tr})
+            df_te = pd.DataFrame({'moments': result_te})
         elif dataset == 'soccer':
-            result_tr, _ = flatten_moments_soccer(df_tr,normalize)  
-            df_tr = pd.DataFrame({'moments': result_tr})  # list: [seqs][t][46-dim]
+            result_tr, _ = flatten_moments_soccer(df_tr, normalize)
+            # list: [seqs][t][46-dim]
+            df_tr = pd.DataFrame({'moments': result_tr})
 
         # filter
         if filter:
-            result_tr = filters(df_tr,fs)
+            result_tr = filters(df_tr, fs)
             df_tr = pd.DataFrame({'moments': result_tr})
-            if dataset == 'nba': 
-                result_te = filters(df_te,fs)
-                df_te = pd.DataFrame({'moments': result_te}) 
+            if dataset == 'nba':
+                result_te = filters(df_te, fs)
+                df_te = pd.DataFrame({'moments': result_te})
 
         # static features
-        result_tr = create_static_features(df_tr,n_pl)
+        result_tr = create_static_features(df_tr, n_pl)
         df_tr = pd.DataFrame({'moments': result_tr})
         if dataset != 'soccer':
-            result_te = create_static_features(df_te,n_pl)
-            df_te = pd.DataFrame({'moments': result_te}) 
+            result_te = create_static_features(df_te, n_pl)
+            df_te = pd.DataFrame({'moments': result_te})
 
         # dynamic features
-        result_tr = create_dynamic_features(df_tr, fs, n_pl,velocity)
-        df_tr = pd.DataFrame({'moments': result_tr}) 
+        result_tr = create_dynamic_features(df_tr, fs, n_pl, velocity)
+        df_tr = pd.DataFrame({'moments': result_tr})
 
         if dataset != 'soccer':
-            result_te = create_dynamic_features(df_te, fs, n_pl,velocity)
-            df_te = pd.DataFrame({'moments': result_te}) 
+            result_te = create_dynamic_features(df_te, fs, n_pl, velocity)
+            df_te = pd.DataFrame({'moments': result_te})
 
-        if dataset == 'nba': 
+        if dataset == 'nba':
             # remove sequence with too high speed
             result_tr, outlier_tr = remove_outlier(df_tr, n_pl)
             df_tr = pd.DataFrame({'moments': result_tr})
             result_te, outlier_te = remove_outlier(df_te, n_pl)
-            df_te = pd.DataFrame({'moments': result_te})     
-            outlier = outlier_tr+outlier_te   
+            df_te = pd.DataFrame({'moments': result_te})
+            outlier = outlier_tr+outlier_te
         else:
-            outlier = 0 
+            outlier = 0
 
         # one hot encoding
-        if False: # dataset != 'soccer':
+        if False:  # dataset != 'soccer':
             OHE = OneHotEncoding()
             result_tr = OHE.add_ohs(result_tr, team_ids_tr)
-            df_tr = pd.DataFrame({'moments': result_tr}) 
+            df_tr = pd.DataFrame({'moments': result_tr})
             result_te = OHE.add_ohs(result_te, team_ids_te)
-            df_te = pd.DataFrame({'moments': result_te}) 
+            df_te = pd.DataFrame({'moments': result_te})
 
-        return df_tr,df_te, outlier
+        return df_tr, df_te, outlier
 
-    game_tr = [] 
+    game_tr = []
     game_te = []
-    outlier = [] 
+    outlier = []
     event_threshold = args.event_threshold
     subsample_factor = args.subsample_factor
     n_roles = args.n_roles
@@ -502,9 +536,10 @@ def process_game_data(Data, game_ids, args): # event_threshold, subsample_factor
         n_pl = 11
         data_unit = 'datasets'
         iter = len(game_ids)
-    
+
     for i in range(iter):
-        print('working on game {0:} | {1:} out of total {2:} {3:}'.format(game_ids[i], i+1, iter,data_unit)) # len(game_ids)
+        print('working on game {0:} | {1:} out of total {2:} {3:}'.format(
+            game_ids[i], i+1, iter, data_unit))  # len(game_ids)
         game_data = Data.load_game(game_ids[i])
 
         if dataset == 'nba':
@@ -513,52 +548,62 @@ def process_game_data(Data, game_ids, args): # event_threshold, subsample_factor
 
         elif dataset == 'soccer':
             data_dict = {}
-            data_dict = {'events':[]}
+            data_dict = {'events': []}
             if 'train_data' in game_ids[i]:
-                len_seqs = args.n_GorS 
-            else: 
+                len_seqs = args.n_GorS
+            else:
                 len_seqs = len(game_data)
-            for j in range(len_seqs): 
-                data_list = [[] for _ in range(game_data["sequence_%d"%(j+1)].shape[0])]
-                for t in range(game_data["sequence_%d"%(j+1)].shape[0]): 
-                    data_list[t].append(game_data["sequence_%d"%(j+1)][t]) # 46-dim
+            for j in range(len_seqs):
+                data_list = [[] for _ in range(
+                    game_data["sequence_%d" % (j+1)].shape[0])]
+                for t in range(game_data["sequence_%d" % (j+1)].shape[0]):
+                    data_list[t].append(
+                        game_data["sequence_%d" % (j+1)][t])  # 46-dim
 
                 data_dict2 = {}
-                data_dict2 = {'moments':data_list}
+                data_dict2 = {'moments': data_list}
                 data_dict['events'].append(data_dict2)
-                
-            events_df = pd.DataFrame(data_dict['events']) # events_df.moments[seqs][t][46-dim]
+
+            # events_df.moments[seqs][t][46-dim]
+            events_df = pd.DataFrame(data_dict['events'])
         if dataset == 'nba':
-            for l, r in zip([game_tr,game_te,outlier], process_game_data_(game_ids[i], events_df, args)):
+            for l, r in zip([game_tr, game_te, outlier], process_game_data_(game_ids[i], events_df, args)):
                 l.append(r)
-            print('Number of events:', len(game_tr[i]),' + ',len(game_te[i]), 'outlier:',outlier[i]) # np.sum(np.vstack())
-        elif dataset == 'soccer': 
+            print('Number of events:', len(
+                game_tr[i]), ' + ', len(game_te[i]), 'outlier:', outlier[i])  # np.sum(np.vstack())
+        elif dataset == 'soccer':
             if 'train_data' in game_ids[i]:
-                game_tr, _, _ = process_game_data_(game_ids[i], events_df, args)
+                game_tr, _, _ = process_game_data_(
+                    game_ids[i], events_df, args)
             elif 'test_data' in game_ids[i]:
-                game_te0, _, _ = process_game_data_(game_ids[i], events_df, args)
+                game_te0, _, _ = process_game_data_(
+                    game_ids[i], events_df, args)
                 game_te.append(game_te0)
 
     if dataset == 'nba':
-        df_tr = pd.concat(game_tr, axis=0) 
+        df_tr = pd.concat(game_tr, axis=0)
         df_te = pd.concat(game_te, axis=0)
-    elif dataset == 'soccer': 
-        df_tr = game_tr 
+    elif dataset == 'soccer':
+        df_tr = game_tr
         df_te = pd.concat(game_te, axis=0)
-        
+
     # hidden role learning
     print('learning hidden roles')
-    hmm_iter_df = int(hmm_iter*2) # 600#
+    hmm_iter_df = int(hmm_iter*2)  # 600#
     print('learn hidden roles using train data')
-    HSL_tr = HiddenStructureLearning(df_tr, [], [], n_pl, n_roles, args, libmode='hmmlearn', tol=1e-4, defend_iter=hmm_iter_df, offend_iter=hmm_iter) # 1000,1000
-    result_train, HSL_d, HSL_o = HSL_tr.reorder_moment() # [seqs]frames*features 
+    HSL_tr = HiddenStructureLearning(df_tr, [], [], n_pl, n_roles, args, libmode='hmmlearn',
+                                     tol=1e-4, defend_iter=hmm_iter_df, offend_iter=hmm_iter)  # 1000,1000
+    # [seqs]frames*features
+    result_train, HSL_d, HSL_o = HSL_tr.reorder_moment()
     # for test data (added)
     print('predict hidden roles using test data')
-    HSL_te = HiddenStructureLearning(df_te, HSL_d, HSL_o, n_pl, n_roles, args, libmode='hmmlearn',tol=1e-4, defend_iter=hmm_iter, offend_iter=hmm_iter) 
-    result_test,_,_ = HSL_te.reorder_moment() # ,_,_ is critical
+    HSL_te = HiddenStructureLearning(df_te, HSL_d, HSL_o, n_pl, n_roles, args,
+                                     libmode='hmmlearn', tol=1e-4, defend_iter=hmm_iter, offend_iter=hmm_iter)
+    result_test, _, _ = HSL_te.reorder_moment()  # ,_,_ is critical
 
     # subsample
-    result = subsample_sequence(result_train, subsample_factor) # [seqs]frames*features 
-    #print(result[0][0].shape) # ndarray: [seqs][frames][features] 
-    result_te = subsample_sequence(result_test, subsample_factor) #  
+    result = subsample_sequence(
+        result_train, subsample_factor)  # [seqs]frames*features
+    # print(result[0][0].shape) # ndarray: [seqs][frames][features]
+    result_te = subsample_sequence(result_test, subsample_factor)
     return result, result_te, HSL_d, HSL_o

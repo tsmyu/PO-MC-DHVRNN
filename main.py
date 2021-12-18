@@ -56,7 +56,7 @@ parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--model', type=str, required=True)
 parser.add_argument('-ev_th', '--event_threshold', type=int, required=True,
                     help='event with frames less than the threshold will be removed')
-parser.add_argument('--fs', type=int, default=10)
+parser.add_argument('--fs', type=int, default=2000)
 # parser.add_argument('-subs_fac','--subsample_factor', type=int, required=True, help='too much data should be downsampled by subs_fac')
 # parser.add_argument('--filter', action='store_true')
 parser.add_argument('--body', action='store_true')

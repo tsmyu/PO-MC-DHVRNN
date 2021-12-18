@@ -437,6 +437,10 @@ if __name__ == '__main__':
     elif args.data == 'soccer':
         n_pl = 11
         subsample_factor = 10*fs
+    elif args.data == 'bat':
+        n_pl = 1
+        # TODO: down sampling factor default of fs = 10 Hz
+        subsample_factor = 2000*fs
 
     args.subsample_factor = subsample_factor
     event_threshold = args.event_threshold

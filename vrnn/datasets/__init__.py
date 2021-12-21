@@ -29,7 +29,8 @@ class GeneralDataset(Dataset):
             with open(self.game_files+'_tr'+str(batch_no)+'.pkl', 'rb') as f:
                 data,_,_,label = cloudpickle.load(f) # ,allow_pickle=True
         else:
-            J = 4 if self.n_GorS == 1 else 8
+            J = 5 if self.n_GorS == 1 else 2
+            print(self.len_seqs)
             batch_no = index // int(self.len_seqs/J)
             if batch_no < J:
                 batch_index = index % int(self.len_seqs/J)

@@ -67,6 +67,16 @@ def subsample_sequence(events, subsample_factor, random_sample=False):
 
     return [subsample_sequence_(ms, subsample_factor) for ms in events]
 
+def get_ans_data(train_data):
+    # data number for a episode - 1
+    ans_data = np.zeros((train_data.shape[0], train_data.shape[1], train_data.shape[2]-1, train_data.shape[3]))
+    one_bat_data = train_data[0]
+    for idx, one_episode_data in enumerate(one_bat_data):
+        ans_data[0][idx][:][:] = one_episode_data[1:][:]
+    
+    return ans_data
+
+
 
 def get_sequences(single_game, policy, sequence_length, overlap, n_pl, k_nearest, n_feat, velocity=0, in_sma=False):
     ''' create events where each event is a list of sequences from

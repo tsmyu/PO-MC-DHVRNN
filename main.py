@@ -510,6 +510,22 @@ if __name__ == '__main__':
     else:
         n_feat = 15 if vel_in == 2 else 13
 
+    try:
+        with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
+            X_train_all = np.load(f, allow_pickle=True)
+    except:
+        raise FileExistsError("train pickle is not exist.")
+    try:
+        with open(game_files+'_val'+str(0)+'.pkl', 'rb') as f:
+            X_val_all = np.load(f, allow_pickle=True)
+    except:
+        raise FileExistsError("validation pickle is not exist.")
+    try:
+        with open(game_files+'_te'+str(0)+'.pkl', 'rb') as f:
+            X_test_all = np.load(f, allow_pickle=True)
+    except:
+        raise FileExistsError("test pickle is not exist.")
+
     if os.path.isfile(game_files+'_te_0.pkl'):
         print(game_files+'_te_0.pkl'+' can be loaded')
         with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:

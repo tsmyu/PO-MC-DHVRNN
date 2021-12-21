@@ -512,7 +512,7 @@ if __name__ == '__main__':
 
     # train pickle load
     try:
-        with open(game_files+'_tr0.pkl', 'rb') as f:
+        with open(game_files+'_tr_0.pkl', 'rb') as f:
             X_train_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("train pickle is not exist.")
@@ -534,6 +534,7 @@ if __name__ == '__main__':
 
     featurelen = X_train_all[0][0].shape[1]
     len_seqs_tr = len(ind_train)
+    print(len_seqs_tr)
     offSet_tr = math.floor(len_seqs_tr / batchSize)
     batchSize_val = len(ind_val)
 
@@ -599,6 +600,7 @@ if __name__ == '__main__':
 
     print('create test sequences')
     # if offSet_tr > 0:
+    print(offSet_tr)
     for j in range(offSet_tr):
         tmp_data = X_all[:, j*batchSize:(j+1)*batchSize, :, :]
         tmp_label = macro_intents[j*batchSize:(j+1)*batchSize, :, :]
@@ -636,10 +638,11 @@ if __name__ == '__main__':
 
     del X_val_all, X_test_test_all, tmp_data
 
+
     print('save train and test sequences')
-    # with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
-    #     X_all, len_seqs_val, len_seqs_test, macro_intents = np.load(
-    #         f, allow_pickle=True)
+    with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
+        X_all, len_seqs_val, len_seqs_test, macro_intents = np.load(
+            f, allow_pickle=True)
 
     # count batches
     offSet_tr = len(glob.glob(game_files+'_tr*.pkl'))
@@ -730,7 +733,13 @@ if __name__ == '__main__':
     args.burn_in = 20  # int(totalTimeSteps/3)
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
-    args.n_all_agents = 22 if args.data == 'soccer' else 10
+    if args.data == 'soccer':
+        args.n_all_agents = 22
+    elif args.data == 'bat':
+        args.n_all_agents = 1
+    else:
+        args.n_all_agents = 10
+    # args.n_all_agents = 22 if args.data == 'soccer' else 10
     if not torch.cuda.is_available():
         args.cuda = False
         print('cuda is not used')

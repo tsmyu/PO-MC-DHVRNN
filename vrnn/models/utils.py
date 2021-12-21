@@ -227,6 +227,13 @@ def roll_out(y_t,y_t_1,prediction_all,acc,normalize,n_roles,n_feat,ball_dim,fs,b
             goalPosition = torch.tensor([1.0, 0]) 
         else:
             goalPosition = torch.tensor([52.5,0])
+    elif n_roles == 1: # bat
+        n_all_agents = 1
+        n_half_agents = 1
+        if normalize:
+            goalPosition = torch.tensor([1.0, 0]) 
+        else:
+            goalPosition = torch.tensor([52.5,0])
     n_feat_player = n_feat*n_all_agents
     goalPosition = goalPosition.repeat(batchSize, 1)
     

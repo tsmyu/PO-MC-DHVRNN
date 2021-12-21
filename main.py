@@ -46,7 +46,7 @@ parser.add_argument('--n_GorS', type=int, required=True)
 parser.add_argument('--n_roles', type=int, required=True)
 parser.add_argument('--val_devide', type=int, default=10)
 parser.add_argument('--hmm_iter', type=int, default=500)
-parser.add_argument('-t_step', '--totalTimeSteps', type=int, default=80)
+parser.add_argument('-t_step', '--totalTimeSteps', type=int, default=1196)
 parser.add_argument('--overlap', type=int, default=40)
 parser.add_argument('-k', '--k_nearest', type=int, default=0)
 parser.add_argument('--batchsize', type=int, required=True)
@@ -93,7 +93,7 @@ def run_epoch(train, rollout, hp):
     losses = {}
     losses2 = {}
     for batch_idx, (data, macro_intents) in enumerate(loader):
-        # print(str(batch_idx))
+        print(str(batch_idx))
         d1 = {'batch_idx': batch_idx}
         hp.update(d1)
 
@@ -512,14 +512,14 @@ if __name__ == '__main__':
 
     # train pickle load
     try:
-        with open(game_files+'_tr_0.pkl', 'rb') as f:
+        with open(os.path.dirname(game_files)+'/bat_flight_TRAIN.pkl', 'rb') as f:
             X_train_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("train pickle is not exist.")
     
     # test pickle load
     try:
-        with open(game_files+'_te.pkl', 'rb') as f:
+        with open(os.path.dirname(game_files)+'/bat_flight_TEST.pkl', 'rb') as f:
             X_test_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("test pickle is not exist.")
@@ -608,7 +608,7 @@ if __name__ == '__main__':
             pickle.dump([tmp_data, len_seqs_val,
                             len_seqs_test, tmp_label], f, protocol=4)
 
-    J = 8
+    J = 2
     batchval = int(len_seqs_val/J)
     for j in range(J):
         if j < J-1:
@@ -894,7 +894,7 @@ if __name__ == '__main__':
     print('############################################################')
 
     # Dataset loaders
-    num_workers = int(args.numProcess/2)
+    num_workers = 1 #int(args.numProcess/2)
     kwargs = {'num_workers': num_workers,
               'pin_memory': True} if args.cuda else {}
     kwargs2 = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}

@@ -512,14 +512,14 @@ if __name__ == '__main__':
 
     # train pickle load
     try:
-        with open("*_tr.pkl", 'rb') as f:
+        with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
             X_train_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("train pickle is not exist.")
     
     # test pickle load
     try:
-        with open("*_te.pkl", 'rb')  as f:
+        with open(game_files+'_te'+str(0)+'.pkl', 'rb') as f:
             X_test_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("test pickle is not exist.")

@@ -1,4 +1,4 @@
-from sequencing import get_sequences, get_train_data
+from sequencing import get_sequences, get_bat_sequence_data
 from utilities import *
 from helpers import *
 from preprocessing import *
@@ -524,133 +524,122 @@ if __name__ == '__main__':
     except:
         raise FileExistsError("test pickle is not exist.")
     
-    X_train_all, Y_train_all = get_train_data(X_train_all)  # [role][seqs][steps,feats]
+    X_train_all, Y_train_all = get_bat_sequence_data(X_train_all)  # [role][seqs][steps,feats]
 
 
+    len_seqs = len(X_train_all[0])
+    X_ind = np.arange(len_seqs)
+    ind_train, ind_val, _, _ = train_test_split(
+        X_ind, X_ind, test_size=1/val_devide, random_state=42)
 
-        # create sequences -----------------------------------------------------------
-        X_train_all, Y_train_all = get_sequences(game_data, activeRoleInd,
-                                                 totalTimeSteps+5, overlapWindow, n_pl, k_nearest, n_feat, vel_in, args.in_sma)  # [role][seqs][steps,feats]
+    featurelen = X_train_all[0][0].shape[1]
+    len_seqs_tr = len(ind_train)
+    offSet_tr = math.floor(len_seqs_tr / batchSize)
+    batchSize_val = len(ind_val)
 
-        if args.in_out:
-            X_train_all = Y_train_all
-        print('get train sequences')
-        del game_data  # -------------
-        # split train/validation
-        len_seqs = len(X_train_all[0])
-        X_ind = np.arange(len_seqs)
-        ind_train, ind_val, _, _ = train_test_split(
-            X_ind, X_ind, test_size=1/val_devide, random_state=42)
-
-        featurelen = X_train_all[0][0].shape[1]
-        len_seqs_tr = len(ind_train)
-        offSet_tr = math.floor(len_seqs_tr / batchSize)
-        batchSize_val = len(ind_val)
-
-        X_all = np.zeros(
-            [n_roles, len(ind_train), totalTimeSteps+4, featurelen])
-        X_val_all = np.zeros(
-            [n_roles, len(ind_val), totalTimeSteps+4, featurelen])
-        for i, X_train in enumerate(X_train_all):
-            i_tr = 0
-            i_val = 0
-            for b in range(len_seqs):
-                if set([b]).issubset(set(ind_train)):
-                    for r in range(totalTimeSteps+4):
-                        X_all[i][i_tr][r][:] = np.squeeze(X_train[b][r, :])
-                    i_tr += 1
-                else:
-                    for r in range(totalTimeSteps+4):
-                        X_val_all[i][i_val][r][:] = np.squeeze(
-                            X_train[b][r, :])
-                    i_val += 1
-
-        print('create train sequences')
-
-        del X_train_all
-
-        # macro intents
-        macro_intents = label_macro_intents(X_all)
-        macro_intents_val = label_macro_intents(X_val_all)
-
-        # for test data-------------
-        X_test_all, Y_test_all = get_sequences(game_data_te, activeRoleInd,
-                                               totalTimeSteps+5, overlapWindow, n_pl, k_nearest, n_feat, vel_in, args.in_sma)  # [role][seqs][steps,feats]
-        del game_data_te
-        if args.in_out:
-            X_test_all = Y_test_all
-
-        len_seqs_val = len(X_val_all[0])
-        len_seqs_test = len(X_test_all[0])
-        batchSize_test = len_seqs_test  # args.batchsize # 32
-        len_seqs_test0 = len_seqs_test
-        ind_test = np.arange(len_seqs_test)
-
-        if args.data == 'nba':
-            X_ind = np.arange(len_seqs_test)
-            _, ind_test, _, _ = train_test_split(
-                X_ind, X_ind, test_size=1/3, random_state=42)
-            len_seqs_test = len(ind_test)
-
-        X_test_test_all = np.zeros(
-            [n_roles, len_seqs_test, totalTimeSteps_test+4, featurelen])
-        for i, X_test in enumerate(X_test_all):
-            i_te = 0
-            for b in range(len_seqs_test0):
-                if args.data == 'nba':
-                    if set([b]).issubset(set(ind_test)):
-                        for r in range(totalTimeSteps+4):
-                            X_test_test_all[i][i_te][r][:] = np.squeeze(
-                                X_test[b][r, :])
-                        i_te += 1
-                elif args.data == 'soccer':
-                    for r in range(totalTimeSteps_test+4):
-                        X_test_test_all[i][b][r][:] = np.squeeze(
-                            X_test[b][r, :])
-
-        print('create test sequences')
-        # if offSet_tr > 0:
-        for j in range(offSet_tr):
-            tmp_data = X_all[:, j*batchSize:(j+1)*batchSize, :, :]
-            tmp_label = macro_intents[j*batchSize:(j+1)*batchSize, :, :]
-            with open(game_files+'_tr'+str(j)+'.pkl', 'wb') as f:
-                pickle.dump([tmp_data, len_seqs_val,
-                             len_seqs_test, tmp_label], f, protocol=4)
-
-        J = 8
-        batchval = int(len_seqs_val/J)
-        for j in range(J):
-            if j < J-1:
-                tmp_data = X_val_all[:, j*batchval:(j+1)*batchval, :, :]
-                tmp_label = macro_intents_val[j*batchval:(j+1)*batchval, :, :]
+    X_all = np.zeros(
+        [n_roles, len(ind_train), totalTimeSteps+4, featurelen])
+    X_val_all = np.zeros(
+        [n_roles, len(ind_val), totalTimeSteps+4, featurelen])
+    for i, X_train in enumerate(X_train_all):
+        i_tr = 0
+        i_val = 0
+        for b in range(len_seqs):
+            if set([b]).issubset(set(ind_train)):
+                for r in range(totalTimeSteps+4):
+                    X_all[i][i_tr][r][:] = np.squeeze(X_train[b][r, :])
+                i_tr += 1
             else:
-                tmp_data = X_val_all[:, j*batchval:, :, :]
-                tmp_label = macro_intents_val[j*batchval:, :, :]
-            with open(game_files+'_val_'+str(j)+'.pkl', 'wb') as f:
-                pickle.dump([tmp_data, tmp_label], f, protocol=4)
-        # with open(game_files_val, 'wb') as f:
-        #    pickle.dump([X_val_all,macro_intents_val], f, protocol=4)
+                for r in range(totalTimeSteps+4):
+                    X_val_all[i][i_val][r][:] = np.squeeze(
+                        X_train[b][r, :])
+                i_val += 1
 
-        macro_intents_te = label_macro_intents(X_test_test_all)
-        batchte = int(len_seqs_test/J)
-        for j in range(J):
-            if j < J-1:
-                tmp_data = X_test_test_all[:, j*batchte:(j+1)*batchte, :, :]
-                tmp_label = macro_intents_te[j*batchte:(j+1)*batchte, :, :]
-            else:
-                tmp_data = X_test_test_all[:, j*batchte:, :, :]
-                tmp_label = macro_intents_te[j*batchte:, :, :]
-            with open(game_files+'_te_'+str(j)+'.pkl', 'wb') as f:
-                pickle.dump([tmp_data, tmp_label], f, protocol=4)
-        # with open(game_files_te, 'wb') as f:
-        #    pickle.dump([X_test_test_all,macro_intents_te], f, protocol=4)
+    print('create train sequences')
 
-        del X_val_all, X_test_test_all, tmp_data
+    del X_train_all
 
-        print('save train and test sequences')
-        with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
-            X_all, len_seqs_val, len_seqs_test, macro_intents = np.load(
-                f, allow_pickle=True)
+    # macro intents
+    macro_intents = label_macro_intents(X_all)
+    macro_intents_val = label_macro_intents(X_val_all)
+
+    # for test data-------------
+    X_test_test_all, Y_test_all = get_bat_sequence_data(X_test_all)
+
+    if args.in_out:
+        X_test_test_all = Y_test_all
+
+    len_seqs_val = len(X_val_all[0])
+    len_seqs_test = len(X_test_all[0])
+    batchSize_test = len_seqs_test  # args.batchsize # 32
+    len_seqs_test0 = len_seqs_test
+    ind_test = np.arange(len_seqs_test)
+
+    # if args.data == 'nba':
+    #     X_ind = np.arange(len_seqs_test)
+    #     _, ind_test, _, _ = train_test_split(
+    #         X_ind, X_ind, test_size=1/3, random_state=42)
+    #     len_seqs_test = len(ind_test)
+
+    # X_test_test_all = np.zeros(
+    #     [n_roles, len_seqs_test, totalTimeSteps_test+4, featurelen])
+    # for i, X_test in enumerate(X_test_all):
+    #     i_te = 0
+    #     for b in range(len_seqs_test0):
+    #         if args.data == 'nba':
+    #             if set([b]).issubset(set(ind_test)):
+    #                 for r in range(totalTimeSteps+4):
+    #                     X_test_test_all[i][i_te][r][:] = np.squeeze(
+    #                         X_test[b][r, :])
+    #                 i_te += 1
+    #         elif args.data == 'soccer':
+    #             for r in range(totalTimeSteps_test+4):
+    #                 X_test_test_all[i][b][r][:] = np.squeeze(
+    #                     X_test[b][r, :])
+
+    print('create test sequences')
+    # if offSet_tr > 0:
+    for j in range(offSet_tr):
+        tmp_data = X_all[:, j*batchSize:(j+1)*batchSize, :, :]
+        tmp_label = macro_intents[j*batchSize:(j+1)*batchSize, :, :]
+        with open(game_files+'_tr'+str(j)+'.pkl', 'wb') as f:
+            pickle.dump([tmp_data, len_seqs_val,
+                            len_seqs_test, tmp_label], f, protocol=4)
+
+    J = 8
+    batchval = int(len_seqs_val/J)
+    for j in range(J):
+        if j < J-1:
+            tmp_data = X_val_all[:, j*batchval:(j+1)*batchval, :, :]
+            tmp_label = macro_intents_val[j*batchval:(j+1)*batchval, :, :]
+        else:
+            tmp_data = X_val_all[:, j*batchval:, :, :]
+            tmp_label = macro_intents_val[j*batchval:, :, :]
+        with open(game_files+'_val_'+str(j)+'.pkl', 'wb') as f:
+            pickle.dump([tmp_data, tmp_label], f, protocol=4)
+    # with open(game_files_val, 'wb') as f:
+    #    pickle.dump([X_val_all,macro_intents_val], f, protocol=4)
+
+    macro_intents_te = label_macro_intents(X_test_test_all)
+    batchte = int(len_seqs_test/J)
+    for j in range(J):
+        if j < J-1:
+            tmp_data = X_test_test_all[:, j*batchte:(j+1)*batchte, :, :]
+            tmp_label = macro_intents_te[j*batchte:(j+1)*batchte, :, :]
+        else:
+            tmp_data = X_test_test_all[:, j*batchte:, :, :]
+            tmp_label = macro_intents_te[j*batchte:, :, :]
+        with open(game_files+'_te_'+str(j)+'.pkl', 'wb') as f:
+            pickle.dump([tmp_data, tmp_label], f, protocol=4)
+    # with open(game_files_te, 'wb') as f:
+    #    pickle.dump([X_test_test_all,macro_intents_te], f, protocol=4)
+
+    del X_val_all, X_test_test_all, tmp_data
+
+    print('save train and test sequences')
+    with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
+        X_all, len_seqs_val, len_seqs_test, macro_intents = np.load(
+            f, allow_pickle=True)
 
     # count batches
     offSet_tr = len(glob.glob(game_files+'_tr*.pkl'))

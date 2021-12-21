@@ -67,16 +67,16 @@ def subsample_sequence(events, subsample_factor, random_sample=False):
 
     return [subsample_sequence_(ms, subsample_factor) for ms in events]
 
-def get_train_data(train_data):
+def get_bat_sequence_data(sequence_data):
     # data number for a episode - 1
-    fix_train_data = np.zeros((train_data.shape[0], train_data.shape[1], train_data.shape[2]-1, train_data.shape[3]))
-    ans_data = np.zeros((train_data.shape[0], train_data.shape[1], train_data.shape[2]-1, 2)) # 2次元用
-    one_bat_data = train_data[0]
+    fix_data = np.zeros((sequence_data.shape[0], sequence_data.shape[1], sequence_data.shape[2]-1, sequence_data.shape[3]))
+    ans_data = np.zeros((sequence_data.shape[0], sequence_data.shape[1], sequence_data.shape[2]-1, 2)) # 2次元用
+    one_bat_data = sequence_data[0]
     for idx, one_episode_data in enumerate(one_bat_data):
-        fix_train_data[0][idx][:][:] = one_episode_data[:-1][:]
+        fix_data[0][idx][:][:] = one_episode_data[:-1][:]
         ans_data[0][idx][:][:] = one_episode_data[:-1][2:4]
     
-    return fix_train_data, ans_data
+    return fix_data, ans_data
 
 
 

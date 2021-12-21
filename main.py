@@ -1155,7 +1155,7 @@ if __name__ == '__main__':
                             batch_idx+1)*batchSize_test, :, r*n_smp_b+i] = att[:, :, :, :, i]
                         # macros[:,:,batch_idx*batchSize_test:(batch_idx+1)*batchSize_test,i] = macros[:,:,:,i] # (time,agents,batch,samples)
                 del sample, sample0
-                for key in output:
+                for key in output: # lossesが出力、keyが
                     if batch_idx == 0 and r == 0:
                         losses[key] = np.zeros(n_sample)
                         losses2[key] = np.zeros((n_sample, len_seqs_test))

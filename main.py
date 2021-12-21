@@ -1,4 +1,4 @@
-from sequencing import get_sequences
+from sequencing import get_sequences, get_train_data
 from utilities import *
 from helpers import *
 from preprocessing import *
@@ -510,52 +510,23 @@ if __name__ == '__main__':
     else:
         n_feat = 15 if vel_in == 2 else 13
 
+    # train pickle load
     try:
         with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
             X_train_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("train pickle is not exist.")
-    try:
-        with open(game_files+'_val'+str(0)+'.pkl', 'rb') as f:
-            X_val_all = np.load(f, allow_pickle=True)
-    except:
-        raise FileExistsError("validation pickle is not exist.")
+    
+    # test pickle load
     try:
         with open(game_files+'_te'+str(0)+'.pkl', 'rb') as f:
             X_test_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("test pickle is not exist.")
+    
+    X_train_all, Y_train_all = get_train_data(X_train_all)  # [role][seqs][steps,feats]
 
-    if os.path.isfile(game_files+'_te_0.pkl'):
-        print(game_files+'_te_0.pkl'+' can be loaded')
-        with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
-            X_all, len_seqs_val, len_seqs_test, macro_intents = np.load(
-                f, allow_pickle=True)
 
-        print('load '+game_files+'_tr0.pkl')
-    else:
-        if os.path.isfile(game_files_pre+'.pkl'):
-            print(game_files_pre+'.pkl will be loaded')
-            with open(game_files_pre+'.pkl', 'rb') as f:
-                game_data, game_data_te = np.load(
-                    f, allow_pickle=True)[:2]  # ,_,_
-
-        else:
-            print(game_files_pre+'.pkl is not existed then will be created')
-            game_data, game_data_te, HSL_d, HSL_o = process_game_data(
-                Data, all_games_id, args)
-            with open(game_files_pre+'.pkl', 'wb') as f:
-                pickle.dump([game_data, game_data_te,
-                             HSL_d, HSL_o], f, protocol=4)
-
-        print('Final number of events:', len(
-            game_data), '+', len(game_data_te))
-        game_ind = np.arange(len(game_data))
-        if args.data == 'soccer':
-            game_train, game_test, _, _ = train_test_split(
-                game_ind, game_ind, test_size=1/val_devide, random_state=42)
-            game_data_te = [game_data[i] for i in game_test]
-            game_data = [game_data[i] for i in game_train]
 
         # create sequences -----------------------------------------------------------
         X_train_all, Y_train_all = get_sequences(game_data, activeRoleInd,

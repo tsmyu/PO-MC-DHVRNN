@@ -512,7 +512,7 @@ if __name__ == '__main__':
 
     # train pickle load
     try:
-        with open(game_files+'_tr.pkl', 'rb') as f:
+        with open(game_files+'_tr0.pkl', 'rb') as f:
             X_train_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("train pickle is not exist.")
@@ -637,9 +637,9 @@ if __name__ == '__main__':
     del X_val_all, X_test_test_all, tmp_data
 
     print('save train and test sequences')
-    with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
-        X_all, len_seqs_val, len_seqs_test, macro_intents = np.load(
-            f, allow_pickle=True)
+    # with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
+    #     X_all, len_seqs_val, len_seqs_test, macro_intents = np.load(
+    #         f, allow_pickle=True)
 
     # count batches
     offSet_tr = len(glob.glob(game_files+'_tr*.pkl'))

@@ -93,7 +93,7 @@ def run_epoch(train, rollout, hp):
     losses = {}
     losses2 = {}
     for batch_idx, (data, macro_intents) in enumerate(loader):
-        print(str(batch_idx))
+        # print(str(batch_idx))
         d1 = {'batch_idx': batch_idx}
         hp.update(d1)
 
@@ -534,7 +534,7 @@ if __name__ == '__main__':
 
     featurelen = X_train_all[0][0].shape[1]
     len_seqs_tr = len(ind_train)
-    print(len_seqs_tr)
+    # print(len_seqs_tr)
     offSet_tr = math.floor(len_seqs_tr / batchSize)
     batchSize_val = len(ind_val)
 
@@ -600,7 +600,7 @@ if __name__ == '__main__':
 
     print('create test sequences')
     # if offSet_tr > 0:
-    print(offSet_tr)
+    # print(offSet_tr)
     for j in range(offSet_tr):
         tmp_data = X_all[:, j*batchSize:(j+1)*batchSize, :, :]
         tmp_label = macro_intents[j*batchSize:(j+1)*batchSize, :, :]

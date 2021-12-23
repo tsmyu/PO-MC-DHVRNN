@@ -75,7 +75,7 @@ def get_bat_sequence_data(sequence_data):
     print(sequence_data.shape)
     for idx, one_episode_data in enumerate(one_bat_data):
         fix_data[0][idx][:][:] = one_episode_data[:-1][:]
-        ans_data[0][idx][:][:] = one_episode_data[:-1,2:4]
+        ans_data[0][idx][:][:] = one_episode_data[:-1,4:7]
 
         
 

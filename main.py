@@ -492,7 +492,7 @@ if __name__ == '__main__':
                       )  # need to be reconsidered
 
     if acc == 0 or acc == -1 or acc == 4:  # vel/pos/acc only
-        outputlen0 = 3
+        outputlen0 = 3 # modify for bat is it correct?
     elif acc == 3:  # all
         outputlen0 = 6
     else:

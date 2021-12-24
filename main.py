@@ -492,7 +492,10 @@ if __name__ == '__main__':
                       )  # need to be reconsidered
 
     if acc == 0 or acc == -1 or acc == 4:  # vel/pos/acc only
-        outputlen0 = 2
+        if args.in_sma:
+            outputlen0 = 2
+        else:
+            outputlen0 = 3
     elif acc == 3:  # all
         outputlen0 = 6
     else:

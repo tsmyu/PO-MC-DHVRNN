@@ -63,7 +63,7 @@ parser.add_argument('--body', action='store_true')
 parser.add_argument('--acc', type=int, default=0)
 parser.add_argument('--vel_in', action='store_true')
 parser.add_argument('--in_out', action='store_true')
-# parser.add_argument('--in_sma', action='store_true')
+parser.add_argument('--in_sma', action='store_true')
 # parser.add_argument('--meanHMM', action='store_true')
 parser.add_argument('--cont', action='store_true')
 parser.add_argument('--numProcess', type=int, default=16)
@@ -411,7 +411,7 @@ if __name__ == '__main__':
 
     # pre-process----------------------------------------------
     args.meanHMM = True  # sorting sequences using meanHMM
-    args.in_sma = True  # small multi-agent data
+    # args.in_sma = True  # small multi-agent data
     # normalize = False
     acc = args.acc  # output: 0: vel, 1: pos+vel, 2:vel+acc, 3: pos+vel+acc
     args.vel_in = 1 if args.vel_in else 2  # input 1: vel 2: vel+acc
@@ -502,13 +502,16 @@ if __name__ == '__main__':
     numOfPrevSteps = 1
     totalTimeSteps_test = totalTimeSteps
     if args.in_sma:
-        n_feat = 6 if vel_in == 2 else 4
-        if acc == -1:
-            n_feat = 2
-    elif args.in_out:
-        n_feat = 6 if vel_in == 2 else 4
+        n_feat = 7
+        # n_feat = 6 if vel_in == 2 else 4
+        # if acc == -1:
+        #     n_feat = 2
     else:
-        n_feat = 15 if vel_in == 2 else 13
+        n_feat = 10
+    # elif args.in_out:
+    #     n_feat = 6 if vel_in == 2 else 4
+    # else:
+    #     n_feat = 15 if vel_in == 2 else 13
 
     # train pickle load
     try:
@@ -746,7 +749,7 @@ if __name__ == '__main__':
     else:
         args.cuda = True
         print('cuda is used')
-    ball_dim = 4 if acc >= 0 else 2
+    ball_dim = 0 if acc >= 0 else 2
     '''if args.data == 'nba':
         ball_dim = 7 if acc else 5 
     elif args.data == 'soccer':    

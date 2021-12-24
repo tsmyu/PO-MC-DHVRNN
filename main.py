@@ -524,7 +524,7 @@ if __name__ == '__main__':
     except:
         raise FileExistsError("test pickle is not exist.")
     
-    X_train_all, Y_train_all = get_bat_sequence_data(X_train_all)  # [role][seqs][steps,feats]
+    X_train_all, Y_train_all = get_bat_sequence_data(X_train_all, args.in_sma)  # [role][seqs][steps,feats]
 
 
     len_seqs = len(X_train_all[0])

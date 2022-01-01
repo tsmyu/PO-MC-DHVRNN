@@ -39,6 +39,9 @@ class RNN_GAUSS(nn.Module):
         n_agents = params['n_agents']
         n_feat = params['n_feat']  # dim
         ball_dim = params['ball_dim']
+
+        # dataset
+        self.dataset = params['dataset']
         
         dropout = 0.5 # 
         # dropout2 = 0
@@ -123,7 +126,7 @@ class RNN_GAUSS(nn.Module):
         fs = self.params['fs'] # added
         x_dim = self.params['x_dim']  
         burn_in = self.params['burn_in']
-
+        
         batchSize = states.size(2)
         len_time = self.params['horizon'] #states.size(0)
 
@@ -138,6 +141,11 @@ class RNN_GAUSS(nn.Module):
                 y_t = states[t][i].clone() # state
                 if self.in_out:
                     x_t0 = states[t+1][i].clone() # pos, vel, acc
+                elif self.dataset == 'bat':
+                    if self.in_sma: #2dim
+                        x_t0 = states[t+1][i][:,n_feat*i+3:n_feat*i+6].clone()
+                    else: #3dim
+                        x_t0 = states[t+1][i][:,n_feat*i+2:n_feat*i+4].clone()
                 elif self.in_sma:
                     x_t0 = states[t+1][i][:,n_feat*i:n_feat*i+n_feat].clone() 
                 elif n_feat == 13:

@@ -180,8 +180,12 @@ class RNN_GAUSS(nn.Module):
                     x_t = x_t0[:, :2]  # pos
 
                 if self.dataset == 'bat':
-                    current_pos = y_t[:, n_feat*i:n_feat*i+3]
-                    current_vel = y_t[:, n_feat*i+3:n_feat*i+6]
+                    if self.in_sma:  # 2dim
+                        current_pos = y_t[:, n_feat*i:n_feat*i+2]
+                        current_vel = y_t[:, n_feat*i+2:n_feat*i+4]
+                    else:  # 3dim
+                        current_pos = y_t[:, n_feat*i:n_feat*i+3]
+                        current_vel = y_t[:, n_feat*i+3:n_feat*i+6]
 
                 elif self.in_sma:
                     current_pos = y_t[:, n_feat*i:n_feat*i+2]

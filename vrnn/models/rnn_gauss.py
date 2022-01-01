@@ -157,7 +157,9 @@ class RNN_GAUSS(nn.Module):
                     x_t0 = states[t][i][:,n_feat*i+3:n_feat*i+x_dim+6].clone()
 
                 # action
-                if acc == 0: 
+                if self.dataset == 'bat':
+                    x_t = x_t0[:,:] # vel 3dim
+                elif acc == 0: 
                     x_t = x_t0[:,2:4] # vel 
                 elif acc == 1: 
                     x_t = x_t0[:,0:4] # pos,vel 

@@ -144,6 +144,9 @@ class RNN_GAUSS(nn.Module):
                     x_t0 = states[t+1][i][:,n_feat*i+3:n_feat*i+x_dim+5].clone() 
                 elif n_feat == 15:
                     x_t0 = states[t+1][i][:,n_feat*i+3:n_feat*i+x_dim+7].clone() # pos, vel, acc
+                elif n_feat == 10:
+                    # TODO: 
+                    x_t0 = states[t][i][:,n_feat*i+3:n_feat*i+x_dim+6].clone()
 
                 # action
                 if acc == 0: 

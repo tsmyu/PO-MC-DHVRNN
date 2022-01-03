@@ -150,9 +150,9 @@ class RNN_GAUSS(nn.Module):
                     x_t0 = states[t+1][i].clone()  # pos, vel, acc
                 elif self.dataset == 'bat':
                     if self.in_sma:  # 2dim
-                        x_t0 = states[t+1][i][:, n_feat*i+3:n_feat*i+6].clone()
-                    else:  # 3dim
                         x_t0 = states[t+1][i][:, n_feat*i+2:n_feat*i+4].clone()
+                    else:  # 3dim
+                        x_t0 = states[t+1][i][:, n_feat*i+3:n_feat*i+6].clone()
                 elif self.in_sma:
                     x_t0 = states[t+1][i][:, n_feat*i:n_feat*i+n_feat].clone()
                 elif n_feat == 13:
@@ -162,7 +162,6 @@ class RNN_GAUSS(nn.Module):
                     x_t0 = states[t+1][i][:, n_feat*i+3:n_feat *
                                           i+x_dim+7].clone()  # pos, vel, acc
                 elif n_feat == 10:
-                    # TODO:
                     x_t0 = states[t][i][:, n_feat*i+3:n_feat*i+x_dim+6].clone()
 
                 # action

@@ -456,7 +456,22 @@ class RNN_GAUSS(nn.Module):
                         x_t = x_t0[:, :2]  # pos
 
                     # for evaluation
-                    if self.in_sma:
+                    if self.dataset == 'bat':
+                        if self.in_sma:  # 2dim
+                            current_pos = y_t[:, n_feat*i:n_feat*i+2]
+                            current_vel = y_t[:, n_feat*i+2:n_feat*i+4]
+                            v0_t1 = x_t0
+                            v0_t2 = states[t+2][i][:,
+                                                n_feat*i+2:n_feat*i+4].clone()
+                            a0_t1 = (v0_t2 - v0_t1)/fs
+                        else:  # 3dim
+                            current_pos = y_t[:, n_feat*i:n_feat*i+3]
+                            current_vel = y_t[:, n_feat*i+3:n_feat*i+6]
+                            v0_t1 = x_t0
+                            v0_t2 = states[t+2][i][:,
+                                                n_feat*i+3:n_feat*i+6].clone()
+                            a0_t1 = (v0_t2 - v0_t1)/fs
+                    elif self.in_sma:
                         current_pos = y_t[:, n_feat*i:n_feat*i+2]
                         p0_t2 = states[t+2][i][:, n_feat*i:n_feat*i+2].clone()
                         if acc >= 0:

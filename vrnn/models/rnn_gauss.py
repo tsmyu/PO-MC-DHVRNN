@@ -182,9 +182,17 @@ class RNN_GAUSS(nn.Module):
                     if self.in_sma:  # 2dim
                         current_pos = y_t[:, n_feat*i:n_feat*i+2]
                         current_vel = y_t[:, n_feat*i+2:n_feat*i+4]
+                        v0_t1 = x_t0
+                        v0_t2 = states[t+2][i][:,
+                                               n_feat*i+2:n_feat*i+4].clone()
+                        a0_t1 = (v0_t2 - v0_t1)/fs
                     else:  # 3dim
                         current_pos = y_t[:, n_feat*i:n_feat*i+3]
                         current_vel = y_t[:, n_feat*i+3:n_feat*i+6]
+                        v0_t1 = x_t0
+                        v0_t2 = states[t+2][i][:,
+                                               n_feat*i+3:n_feat*i+6].clone()
+                        a0_t1 = (v0_t2 - v0_t1)/fs
 
                 elif self.in_sma:
                     current_pos = y_t[:, n_feat*i:n_feat*i+2]
@@ -270,8 +278,9 @@ class RNN_GAUSS(nn.Module):
                 elif acc == -1:
                     next_pos = dec_mean_t[:, :2]
                     v_t1 = (p0_t2 - next_pos)/fs
-
-                if acc == 2:
+                if self.dataset == 'bat':
+                    a_t1 = (v0_t2 - v_t1)/fs
+                elif acc == 2:
                     a_t1 = dec_mean_t[:, 2:4]
                 elif acc == 3:
                     a_t1 = dec_mean_t[:, 4:6]
@@ -281,7 +290,17 @@ class RNN_GAUSS(nn.Module):
                     a_t1 = (v0_t2 - v_t1)/fs
 
                 # jerk
-                if n_feat == 15:
+                if self.dataset == 'bat':
+                    if self.in_sma:  # 2dim
+                        v0_t3 = states[t+3][i][:,
+                                               n_feat*i+2:n_feat*i+4].clone()
+                        a_t2 = (v0_t3 - v0_t2)/fs
+                    else:
+                        v0_t3 = states[t+3][i][:,
+                                               n_feat*i+3:n_feat*i+6].clone()
+                        a_t2 = (v0_t3 - v0_t2)/fs
+
+                elif n_feat == 15:
                     a_t2 = states[t+2][i][:, n_feat*i+7:n_feat*i+9].clone()
                 elif n_feat == 6:
                     a_t2 = states[t+2][i][:, n_feat*i+4:n_feat*i+6].clone()

@@ -522,16 +522,16 @@ if __name__ == '__main__':
             X_train_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("train pickle is not exist.")
-    
+
     # test pickle load
     try:
         with open(os.path.dirname(game_files)+'/bat_flight_TEST.pkl', 'rb') as f:
             X_test_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("test pickle is not exist.")
-    
-    X_train_all, Y_train_all = get_bat_sequence_data(X_train_all, args.in_sma)  # [role][seqs][steps,feats]
 
+    X_train_all, Y_train_all = get_bat_sequence_data(
+        X_train_all, args.in_sma)  # [role][seqs][steps,feats]
 
     len_seqs = len(X_train_all[0])
     X_ind = np.arange(len_seqs)
@@ -571,7 +571,8 @@ if __name__ == '__main__':
     macro_intents_val = label_macro_intents(X_val_all)
 
     # for test data-------------
-    X_test_test_all, Y_test_all = get_bat_sequence_data(X_test_all)
+    X_test_test_all, Y_test_all = get_bat_sequence_data(
+        X_test_all, args.in_sma)
 
     if args.in_out:
         X_test_test_all = Y_test_all
@@ -612,7 +613,7 @@ if __name__ == '__main__':
         tmp_label = macro_intents[j*batchSize:(j+1)*batchSize, :, :]
         with open(game_files+'_tr'+str(j)+'.pkl', 'wb') as f:
             pickle.dump([tmp_data, len_seqs_val,
-                            len_seqs_test, tmp_label], f, protocol=4)
+                         len_seqs_test, tmp_label], f, protocol=4)
 
     J = 2
     batchval = int(len_seqs_val/J)
@@ -643,7 +644,6 @@ if __name__ == '__main__':
     #    pickle.dump([X_test_test_all,macro_intents_te], f, protocol=4)
 
     del X_val_all, X_test_test_all, tmp_data
-
 
     print('save train and test sequences')
     with open(game_files+'_tr'+str(0)+'.pkl', 'rb') as f:
@@ -900,7 +900,7 @@ if __name__ == '__main__':
     print('############################################################')
 
     # Dataset loaders
-    num_workers = 1 #int(args.numProcess/2)
+    num_workers = 1  # int(args.numProcess/2)
     kwargs = {'num_workers': num_workers,
               'pin_memory': True} if args.cuda else {}
     kwargs2 = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
@@ -1146,7 +1146,7 @@ if __name__ == '__main__':
                             batch_idx+1)*batchSize_test, :, r*n_smp_b+i] = att[:, :, :, :, i]
                         # macros[:,:,batch_idx*batchSize_test:(batch_idx+1)*batchSize_test,i] = macros[:,:,:,i] # (time,agents,batch,samples)
                 del sample, sample0
-                for key in output: # lossesが出力、keyが
+                for key in output:  # lossesが出力、keyが
                     if batch_idx == 0 and r == 0:
                         losses[key] = np.zeros(n_sample)
                         losses2[key] = np.zeros((n_sample, len_seqs_test))

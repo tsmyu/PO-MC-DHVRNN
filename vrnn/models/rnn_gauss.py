@@ -558,7 +558,9 @@ class RNN_GAUSS(nn.Module):
                         next_pos = dec_mean_t[:, :2]
                         v_t1 = (p0_t2 - next_pos)/fs
 
-                    if acc == 2:
+                    if self.dataset == 'bat':
+                        a_t1 = (v0_t2 - v_t1)/fs
+                    elif acc == 2:
                         a_t1 = dec_mean_t[:, 2:4]
                     elif acc == 3:
                         a_t1 = dec_mean_t[:, 4:6]

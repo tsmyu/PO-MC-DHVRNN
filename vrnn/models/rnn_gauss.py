@@ -545,7 +545,10 @@ class RNN_GAUSS(nn.Module):
 
                     # body constraint
                     # acc
-                    if acc == 1 or acc == 3:
+                    if self.dataset == 'bat':
+                        v_t1 = dec_mean_t[:, :3]
+                        next_pos = current_pos + v_t1*fs
+                    elif acc == 1 or acc == 3:
                         v_t1 = dec_mean_t[:, 2:4]
                         next_pos = dec_mean_t[:, :2]
                     elif acc == 0 or acc == 2:

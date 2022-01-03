@@ -442,7 +442,9 @@ class RNN_GAUSS(nn.Module):
                                               i+x_dim+7].clone()  # pos, vel, acc
 
                     # action
-                    if acc == 0:
+                    if self.dataset == 'bat':
+                        x_t = x_t0[:, :]  # vel 3dim
+                    elif acc == 0:
                         x_t = x_t0[:, 2:4]  # vel
                     elif acc == 1:
                         x_t = x_t0[:, 0:4]  # pos,vel

@@ -507,7 +507,9 @@ class RNN_GAUSS(nn.Module):
                                                n_feat*i+5:n_feat*i+7].clone()
 
                     if self.in_state0:
-                        if acc == 3:
+                        if self.dataset == 'bat':
+                            state_in0 = current_vel
+                        elif acc == 3:
                             state_in0 = torch.cat(
                                 [current_pos, current_vel, current_acc], 1)
                         elif acc == 2:

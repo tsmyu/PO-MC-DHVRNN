@@ -568,6 +568,15 @@ class RNN_GAUSS(nn.Module):
                         a_t1 = (v0_t2 - v_t1)/fs
 
                     # jerk
+                    if self.dataset == 'bat':
+                        if self.in_sma:  # 2dim
+                            v0_t3 = states[t+3][i][:,
+                                                n_feat*i+2:n_feat*i+4].clone()
+                            a_t2 = (v0_t3 - v0_t2)/fs
+                        else:
+                            v0_t3 = states[t+3][i][:,
+                                                n_feat*i+3:n_feat*i+6].clone()
+                            a_t2 = (v0_t3 - v0_t2)/fs
                     if n_feat == 15:
                         a_t2 = states[t+2][i][:, n_feat*i+7:n_feat*i+9].clone()
                     elif n_feat == 6:

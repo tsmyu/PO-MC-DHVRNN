@@ -189,107 +189,59 @@ def roll_out(y_t,y_t_1,prediction_all,acc,normalize,n_roles,n_feat,ball_dim,fs,b
         roleOrder: scalar (1,0)
     output:
         new_feature_vector
-    global: 
-        k_nearest
     '''
     prev_feature = y_t
     next_feature = y_t_1
+    dim_x = prediction_all.shape[2]
     if acc == 0: # vel
-        next_vel = prediction_all[:,:,:2]
+        next_vel = prediction_all
+        dim = dim_x
     elif acc == 1 or acc == -1 or acc == 3: # pos,vel,(acc)
+        error('not modified yet. dim should be defined') # TBD
         next_pos = prediction_all[:,:,:2]
         if acc >= 1:
             next_vel = prediction_all[:,:,2:4]
         if acc == 3:
             next_acc = prediction_all[:,:,4:]
     elif acc == 2: # vel,acc
-        next_vel = prediction_all[:,:,:2]
-        next_acc = prediction_all[:,:,2:]
+        dim = int(dim_x/2)
+        next_vel = prediction_all[:,:,:dim]
+        next_acc = prediction_all[:,:,dim:]
     elif acc == 4: # acc
         next_acc = prediction_all
+        dim = dim_x
 
     roleOrder = i
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # batchSize = prev_feature.shape[0]
     n_feat_all = prev_feature.shape[1]
     
-    if n_roles == 5:  # basketball
-        n_all_agents = 10
-        n_half_agents = 5
-        if normalize:
-            goalPosition = torch.tensor([1.0, 0]) 
-        else:
-            goalPosition = torch.tensor([3.917, 25]) # [1.0, 0]
-    elif n_roles == 10: # soccer
-        n_all_agents = 22
-        n_half_agents = 11
-        if normalize:
-            goalPosition = torch.tensor([1.0, 0]) 
-        else:
-            goalPosition = torch.tensor([52.5,0])
-    elif n_roles == 1: # bat
-        n_all_agents = 1
-        n_half_agents = 1
-        if normalize:
-            goalPosition = torch.tensor([1.0, 0]) 
-        else:
-            goalPosition = torch.tensor([52.5,0])
+    n_all_agents = n_roles
     n_feat_player = n_feat*n_all_agents
-    goalPosition = goalPosition.repeat(batchSize, 1)
     
-    next_current = next_feature[:,0:n_feat_player] # 13*22 original: 0:390 (including redundant features?)
-    ball = next_feature[:,n_feat_player:n_feat_player+ball_dim] # original: 390:399?
+    next_current = next_feature[:,0:n_feat_player] 
 
-    if False: # n_roles == 5: # basketball
-        team_oneHot = next_feature[:,n_feat_player+ball_dim:n_feat_player+60+ball_dim]
-
-    legacy_next = next_current.reshape(batchSize,n_all_agents,n_feat) # original:30,13?
+    legacy_next = next_current.reshape(batchSize,n_all_agents,n_feat) 
     new_matrix = torch.zeros((batchSize,n_all_agents,n_feat)).to(device) 
-    teammateList = list(range(n_half_agents)) 
-    opponentList = list(range(n_half_agents,n_all_agents))  
+    teammateList = list(range(n_all_agents)) 
 
     roleOrderList = [role for role in range(n_roles)]
     role_long = torch.zeros((batchSize,n_feat)).to(device)
     teammateList.remove(roleOrder)
 
     # fix role vector
-    if n_feat > 10: 
-        role_long[:,0:3] = torch.zeros((batchSize,3)) # variables for the role oneself (distance, cos, sin)
-        if acc >= 0:
-            role_long[:,5:7] = next_vel[:,roleOrder,:]
-        if acc == 0: # vel
-            role_long[:,3:5] = prev_feature[:,roleOrder*n_feat+3:(roleOrder*n_feat+5)] + role_long[:,5:7]*fs 
-            if n_feat == 15: 
-                role_long[:,7:9] = next_feature[:,roleOrder*n_feat+7:(roleOrder*n_feat+9)] # ground truth
-        elif acc == 1 : # pos,vel
-            role_long[:,3:5] = next_pos[:,roleOrder,:]
-            if n_feat == 15: 
-                role_long[:,7:9] = next_feature[:,roleOrder*n_feat+7:(roleOrder*n_feat+9)] # ground truth
-        elif acc == 2: # vel,acc
-            role_long[:,3:5] = prev_feature[:,roleOrder*n_feat+3:(roleOrder*n_feat+5)] + role_long[:,5:7]*fs 
-            if n_feat == 15: 
-                role_long[:,7:9] = next_acc[:,roleOrder,:]
-        # elif acc == 3 and 4: # TBD
-        # elif acc == -1: # TBD
-
-        d_xy = 9 if n_feat == 15 else 7               
-        role_long[:,d_xy:d_xy+3] = calc_dist_cos_sin(role_long[:,3:5],goalPosition,batchSize)
-        role_long[:,d_xy+3:d_xy+6] = calc_dist_cos_sin(role_long[:,3:5],ball,batchSize)
-    else: # simple
-        if acc >= 2:
-            role_long[:,4:6] = next_acc[:,roleOrder,:]
-        if acc >= 0 and acc < 4:
-            role_long[:,2:4] = next_vel[:,roleOrder,:]
-        if acc == 1 or acc == 3 or acc == -1: 
-            role_long[:,0:2] = next_pos[:,roleOrder,:]
-        elif acc == 0 or acc == 2:
-            # role_long[:,0:2] = prev_feature[:,roleOrder*n_feat:(roleOrder*n_feat+2)] + role_long[:,2:4]*fs 
-            role_long[:,0:2] = prev_feature[:,roleOrder*n_feat:(roleOrder*n_feat+2)] + prev_feature[:,roleOrder*n_feat+2:(roleOrder*n_feat+4)]*fs 
-        elif acc == 4:
-            role_long[:,2:4] = prev_feature[:,roleOrder*n_feat+2:(roleOrder*n_feat+4)] + prev_feature[:,roleOrder*n_feat+4:(roleOrder*n_feat+6)]*fs 
-            role_long[:,0:2] = prev_feature[:,roleOrder*n_feat:(roleOrder*n_feat+2)] + prev_feature[:,roleOrder*n_feat+2:(roleOrder*n_feat+4)]*fs 
-
-
+    if acc >= 2:
+        role_long[:,dim*2:] = next_acc[:,roleOrder,:]
+    if acc >= 0 and acc < 4:
+        role_long[:,dim:dim*2] = next_vel[:,roleOrder,:]
+    if acc == 1 or acc == 3 or acc == -1: 
+        error('not modified yet') # TBD
+        role_long[:,:dim] = next_pos[:,roleOrder,:]
+    elif acc == 0 or acc == 2:
+        role_long[:,0:dim] = prev_feature[:,roleOrder*n_feat:(roleOrder*n_feat+dim)] + prev_feature[:,roleOrder*n_feat+dim:(roleOrder*n_feat+dim*2)]*fs 
+    elif acc == 4:
+        role_long[:,dim:dim*2] = prev_feature[:,roleOrder*n_feat+2:(roleOrder*n_feat+dim*2)] + prev_feature[:,roleOrder*n_feat+dim*2:(roleOrder*n_feat+dim*3)]*fs 
+        role_long[:,0:dim] = prev_feature[:,roleOrder*n_feat:(roleOrder*n_feat+dim)] + prev_feature[:,roleOrder*n_feat+dim:(roleOrder*n_feat+dim*2)]*fs 
 
     new_matrix[:,roleOrder,:] = role_long
 
@@ -299,60 +251,23 @@ def roll_out(y_t,y_t_1,prediction_all,acc,normalize,n_roles,n_feat,ball_dim,fs,b
         if teammate in roleOrderList: # if the teammate is one of the active players: e.g. eliminate goalkeepers
             teamRoleInd = roleOrderList.index(teammate)
             
-            if n_feat > 10: 
-                if acc >= 0:
-                    player[:,5:7] = next_vel[:,teamRoleInd,:]
-                if acc == 0: # vel
-                    player[:,3:5] = prev_feature[:,teamRoleInd*n_feat+3:(teamRoleInd*n_feat+5)] + player[:,5:7]*fs 
-                    if n_feat == 15: 
-                        player[:,7:9] = next_feature[:,teamRoleInd*n_feat+7:(teamRoleInd*n_feat+9)] # ground truth
-                elif acc == 1: # pos,vel
-                    player[:,3:5] = next_pos[:,teamRoleInd,:]
-                    if n_feat == 15: 
-                        player[:,7:9] = next_feature[:,teamRoleInd*n_feat+7:(teamRoleInd*n_feat+9)] # ground truth
-                elif acc == 2: # vel,acc
-                    player[:,3:5] = prev_feature[:,teamRoleInd*n_feat+3:(teamRoleInd*n_feat+5)] + player[:,5:7]*fs 
-                    if n_feat == 15: 
-                        player[:,7:9] = next_acc[:,teamRoleInd,:]
-                # elif acc == 3 and 4: # TBD
-                # elif acc == -1: # TBD
-                player[:,d_xy:d_xy+3] = calc_dist_cos_sin(player[:,3:5],goalPosition,batchSize)
-                player[:,d_xy+3:d_xy+6] = calc_dist_cos_sin(player[:,3:5],ball,batchSize)
-            else:
-                if acc >= 2: # vel,acc
-                    player[:,4:6] = next_acc[:,teamRoleInd,:]
+            if acc >= 2: # vel,acc
+                player[:,dim*2:] = next_acc[:,teamRoleInd,:]
 
-                if acc >= 0 and acc < 4:
-                    player[:,2:4] = next_vel[:,teamRoleInd,:]
-                elif acc == 4:
-                    player[:,2:4] = prev_feature[:,teamRoleInd*n_feat+2:(teamRoleInd*n_feat+4)] + prev_feature[:,teamRoleInd*n_feat+4:(teamRoleInd*n_feat+6)]*fs 
+            if acc >= 0 and acc < 4:
+                player[:,dim:dim*2] = next_vel[:,teamRoleInd,:]
+            elif acc == 4:
+                player[:,dim:dim*2] = prev_feature[:,teamRoleInd*n_feat+dim:(teamRoleInd*n_feat+dim*2)] + prev_feature[:,teamRoleInd*n_feat+dim:2:(teamRoleInd*n_feat+dim*3)]*fs 
 
-                if acc == 1 or acc == 3 or acc == -1: 
-                    player[:,0:2] = next_pos[:,teamRoleInd,:]
-                else:     
-                    # player[:,0:2] = prev_feature[:,teamRoleInd*n_feat:(teamRoleInd*n_feat+2)] + player[:,2:4]*fs      
-                    player[:,0:2] = prev_feature[:,teamRoleInd*n_feat:(teamRoleInd*n_feat+2)] + prev_feature[:,teamRoleInd*n_feat+2:(teamRoleInd*n_feat+4)]*fs           
-
-        if n_feat > 10: 
-            player[:,:3] = calc_dist_cos_sin(player[:,3:5],role_long[:,3:5],batchSize)
+            if acc == 1 or acc == 3 or acc == -1: 
+                player[:,0:dim] = next_pos[:,teamRoleInd,:]
+            else:     
+                player[:,0:dim] = prev_feature[:,teamRoleInd*n_feat:(teamRoleInd*n_feat+dim)] + prev_feature[:,teamRoleInd*n_feat+dim:(teamRoleInd*n_feat+dim*2)]*fs           
 
         new_matrix[:,teammate,:] = player
-
-    for opponent in opponentList: 
-        player = legacy_next[:,opponent,:]
-        if n_feat > 10: 
-            player[:,:3] = calc_dist_cos_sin(player[:,3:5],role_long[:,3:5],batchSize)
-        new_matrix[:,opponent,:] = player
-
-    # nearest players (deleted)
        
     # output
-    new_feature_vector = torch.cat([torch.reshape(new_matrix,(batchSize,n_all_agents*n_feat)), ball ],dim=1) 
-    
-    #if n_roles == 5: # basketball
-    #    new_feature_vector = torch.cat((new_feature_vector, team_oneHot ))
-
-    # assert new_feature_vector.shape[1] == n_feat_all 
+    new_feature_vector = torch.reshape(new_matrix,(batchSize,n_all_agents*n_feat))
 
     return new_feature_vector
 

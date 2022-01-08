@@ -736,7 +736,7 @@ if __name__ == '__main__':
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
-    args.burn_in = 20  # int(totalTimeSteps/3)
+    args.burn_in = 30  # int(totalTimeSteps/3)
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
     if args.data == 'soccer':

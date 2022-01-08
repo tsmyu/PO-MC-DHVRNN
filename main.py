@@ -548,7 +548,6 @@ if __name__ == '__main__':
         [n_roles, len(ind_train), totalTimeSteps+4, featurelen])
     X_val_all = np.zeros(
         [n_roles, len(ind_val), totalTimeSteps+4, featurelen])
-    import pdb; pdb.set_trace()
     for i, X_train in enumerate(X_train_all):
         i_tr = 0
         i_val = 0

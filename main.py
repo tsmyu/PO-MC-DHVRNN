@@ -439,8 +439,8 @@ if __name__ == '__main__':
         subsample_factor = 10*fs
     elif args.data == 'bat':
         n_pl = 1
-        # note default fs is 2000 Hz
-        subsample_factor = 2000*fs
+        # note default fs is 60 Hz
+        subsample_factor = 60*fs
 
     args.subsample_factor = subsample_factor
     event_threshold = args.event_threshold
@@ -548,6 +548,7 @@ if __name__ == '__main__':
         [n_roles, len(ind_train), totalTimeSteps+4, featurelen])
     X_val_all = np.zeros(
         [n_roles, len(ind_val), totalTimeSteps+4, featurelen])
+    import pdb; pdb.set_trace()
     for i, X_train in enumerate(X_train_all):
         i_tr = 0
         i_val = 0

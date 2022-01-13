@@ -457,7 +457,7 @@ def plot_check_pred(pred, target, batch_size=32):
     check_ind = np.random.randint(0, batch_size)
     print('rand checking index:', check_ind)
 
-    print(pred[check_ind].shape)
+    # print(pred[check_ind].shape)
     y_true = target[check_ind].reshape(-1, 2)
     y_pred = pred[check_ind].reshape(-1, 2)
 

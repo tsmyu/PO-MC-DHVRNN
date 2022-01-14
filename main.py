@@ -571,7 +571,7 @@ if __name__ == '__main__':
     macro_intents_val = label_macro_intents(X_val_all)
 
     # for test data-------------
-    X_test_test_all, Y_test_all = get_bat_sequence_data(
+    X_test_all, Y_test_all = get_bat_sequence_data(
         X_test_all, args.in_sma)
 
     if args.in_out:
@@ -589,21 +589,25 @@ if __name__ == '__main__':
     #         X_ind, X_ind, test_size=1/3, random_state=42)
     #     len_seqs_test = len(ind_test)
 
-    # X_test_test_all = np.zeros(
-    #     [n_roles, len_seqs_test, totalTimeSteps_test+4, featurelen])
-    # for i, X_test in enumerate(X_test_all):
-    #     i_te = 0
-    #     for b in range(len_seqs_test0):
-    #         if args.data == 'nba':
-    #             if set([b]).issubset(set(ind_test)):
-    #                 for r in range(totalTimeSteps+4):
-    #                     X_test_test_all[i][i_te][r][:] = np.squeeze(
-    #                         X_test[b][r, :])
-    #                 i_te += 1
-    #         elif args.data == 'soccer':
-    #             for r in range(totalTimeSteps_test+4):
-    #                 X_test_test_all[i][b][r][:] = np.squeeze(
-    #                     X_test[b][r, :])
+    X_test_test_all = np.zeros(
+        [n_roles, len_seqs_test, totalTimeSteps_test+4, featurelen])
+    for i, X_test in enumerate(X_test_all):
+        i_te = 0
+        for b in range(len_seqs_test0):
+            if args.data == 'nba':
+                if set([b]).issubset(set(ind_test)):
+                    for r in range(totalTimeSteps+4):
+                        X_test_test_all[i][i_te][r][:] = np.squeeze(
+                            X_test[b][r, :])
+                    i_te += 1
+            elif args.data == 'soccer':
+                for r in range(totalTimeSteps_test+4):
+                    X_test_test_all[i][b][r][:] = np.squeeze(
+                        X_test[b][r, :])
+            elif args.data == 'bat':
+                for r in range(totalTimeSteps_test+4):
+                    X_test_test_all[i][b][r][:] = np.squeeze(
+                        X_test[b][r, :])
 
     print('create test sequences')
     # if offSet_tr > 0:
@@ -1096,7 +1100,7 @@ if __name__ == '__main__':
     # Load ground-truth states from test set
     loader = test_loader
     n_sample = 10
-    n_smp_b = 10 if args.dataset == 'nba' else 1
+    n_smp_b = 10 if args.dataset == 'nba' or args.dataset == 'bat' else 1
     if args.n_GorS >= 50 and args.dataset == 'nba' and args.attention == 3:
         n_smp_b = 5
     rep_smp = int(n_sample/n_smp_b)

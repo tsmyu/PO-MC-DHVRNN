@@ -28,6 +28,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+import tensorboardX as tbx
+
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
@@ -946,6 +948,7 @@ if __name__ == '__main__':
           str(batchSize_val)+' test: '+str(batchSize_test))
 
     ###### TRAIN LOOP ##############
+    writer = tbx.SummaryWriter()
     best_val_loss = 0
     epochs_since_best = 0
     lr = max(args.start_lr, args.min_lr)  # if not args.finetune else 1e-4
@@ -1026,6 +1029,10 @@ if __name__ == '__main__':
 
             epoch_time = time.time() - start_time
             print('Time:\t {:.3f}'.format(epoch_time))
+
+            # for tensorboardX
+            writer.add_scalars('train/loss for backpropagation', train_loss, epoch)
+            writer.add_scalars('train/loss',train_loss2, epoch)
 
             # Best model on test set
             if e > epoch_first_best and (best_val_loss == 0 or total_val_loss < best_val_loss):
@@ -1174,10 +1181,12 @@ if __name__ == '__main__':
                                                            n_smp_b+i] / len(test_loader.dataset)
                 print('Test sample '+str(r*n_smp_b+i) +
                       ':\t'+loss_str(loss_i[r*n_smp_b+i]))
+                writer.add_scalars('test/loss', loss_i[r*n_smp_b+i], r*n_smp_b+i)
 
             epoch_time = time.time() - start_time
             print('Time:\t {:.3f}'.format(epoch_time))  # Sample {} r*n_smp_b,
 
+        writer.close()
         if True:  # create Mean + SD Tex Table for positions------------------------------------------------
             avgL2_m = {}
             avgL2_sd = {}

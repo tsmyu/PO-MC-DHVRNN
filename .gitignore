@@ -2,3 +2,4 @@ __pycache__/
 vrnn/datasets/
 weights/
 data/
+runs/

@@ -3,7 +3,7 @@ from utilities import *
 from helpers import *
 from preprocessing import *
 from vrnn.datasets import GeneralDataset
-from vrnn.models.utils import num_trainable_params
+from vrnn.models.utils import num_trainable_params, roll_out
 from vrnn.models import load_model
 from datetime import datetime
 from math import sqrt
@@ -27,6 +27,7 @@ import hmmlearn
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+# from model_wrapper import ModelWrapper
 
 import tensorboardX as tbx
 
@@ -58,7 +59,7 @@ parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--model', type=str, required=True)
 parser.add_argument('-ev_th', '--event_threshold', type=int, required=True,
                     help='event with frames less than the threshold will be removed')
-parser.add_argument('--fs', type=int, default=10)
+parser.add_argument('--fs', type=int, default=60)
 # parser.add_argument('-subs_fac','--subsample_factor', type=int, required=True, help='too much data should be downsampled by subs_fac')
 # parser.add_argument('--filter', action='store_true')
 parser.add_argument('--body', action='store_true')
@@ -520,14 +521,14 @@ if __name__ == '__main__':
 
     # train pickle load
     try:
-        with open(os.path.dirname(game_files)+'/bat_flight_TRAIN.pkl', 'rb') as f:
+        with open(os.path.dirname(game_files)+'/bat_flight_TRAIN2.pkl', 'rb') as f:
             X_train_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("train pickle is not exist.")
 
     # test pickle load
     try:
-        with open(os.path.dirname(game_files)+'/bat_flight_TEST.pkl', 'rb') as f:
+        with open(os.path.dirname(game_files)+'/bat_flight_TEST2.pkl', 'rb') as f:
             X_test_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("test pickle is not exist.")
@@ -729,7 +730,7 @@ if __name__ == '__main__':
     args.min_lr = 1e-3
     clip = True  # gradient clipping
     args.seed = 200
-    save_every = 1
+    save_every = 100
     args.batch_size = batchSize
     # args.normalize = normalize # default: False
     # args.cont = False # continue training previous best model
@@ -1029,10 +1030,13 @@ if __name__ == '__main__':
 
             epoch_time = time.time() - start_time
             print('Time:\t {:.3f}'.format(epoch_time))
-
-            # for tensorboardX
+            
+            # for tensorboardX of train
             writer.add_scalars('train/loss for backpropagation', train_loss, epoch)
             writer.add_scalars('train/loss',train_loss2, epoch)
+            # for tensorboardX of validation
+            writer.add_scalars('val/loss for backpropagation', val_loss, epoch)
+            writer.add_scalars('val/loss',val_loss2, epoch)
 
             # Best model on test set
             if e > epoch_first_best and (best_val_loss == 0 or total_val_loss < best_val_loss):
@@ -1103,6 +1107,13 @@ if __name__ == '__main__':
     state_dict = torch.load('{}_best.pth'.format(
         init_pthname, params['model']), map_location=lambda storage, loc: storage)
     model.load_state_dict(state_dict)
+    # for tensorboardX of model graph
+    # dataiter = iter(train_loader)
+    # data_for_visual, labels = dataiter.next()
+    # data_for_visual = data_for_visual.permute(2, 1, 0, 3)
+    # dummy_input = torch.rand((4,1,100,10))
+    # model_wrapper = ModelWrapper(model)
+    # writer.add_graph(model_wrapper, data_for_visual)
 
     # Load ground-truth states from test set
     loader = test_loader

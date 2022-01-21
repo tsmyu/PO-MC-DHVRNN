@@ -115,7 +115,7 @@ class RNN_GAUSS(nn.Module):
                 nn.init.xavier_normal_(m.weight_hh_l0)
                 nn.init.xavier_normal_(m.weight_ih_l0)
 
-    def forward(self, states, rollout, train, hp=None):
+    def forward(self, states, rollout=False, train=1, hp=None):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         acc = self.params['acc']
         out = {}

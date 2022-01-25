@@ -49,7 +49,7 @@ parser.add_argument('--n_GorS', type=int, required=True)
 parser.add_argument('--n_roles', type=int, required=True)
 parser.add_argument('--val_devide', type=int, default=10)
 parser.add_argument('--hmm_iter', type=int, default=500)
-parser.add_argument('-t_step', '--totalTimeSteps', type=int, default=96)
+parser.add_argument('-t_step', '--totalTimeSteps', type=int, default=356)
 parser.add_argument('--overlap', type=int, default=40)
 parser.add_argument('-k', '--k_nearest', type=int, default=0)
 parser.add_argument('--batchsize', type=int, required=True)
@@ -743,7 +743,7 @@ if __name__ == '__main__':
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
-    args.burn_in = 30  # int(totalTimeSteps/3)
+    args.burn_in = int(totalTimeSteps/3)
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
     if args.data == 'soccer':

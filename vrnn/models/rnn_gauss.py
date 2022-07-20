@@ -667,4 +667,5 @@ class RNN_GAUSS(nn.Module):
             states = states_n
         soft_att = []
         hard_att = []
-        return states, soft_att, hard_att, out, out2
+        
+        return states, soft_att, hard_att, out, out2, y_t

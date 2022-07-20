@@ -1,3 +1,4 @@
+from matplotlib import image
 from sequencing import get_sequences, get_bat_sequence_data
 from utilities import *
 from helpers import *
@@ -128,11 +129,21 @@ def run_epoch(train, rollout, hp):
                     batch_losses, batch_losses2 = model(
                         data, rollout, train, macro_intents, hp=hp)
                 else:
-                    _, _, _, batch_losses, batch_losses2 = model.sample(
+                    _, _, _, batch_losses, batch_losses2, prediction = model.sample(
                         data, macro_intents, rollout=True, burn_in=hp['burn_in'], L_att=hp['L_att'])
+                    x_pre = float(prediction[1][4].item())
+                    y_pre = float(prediction[1][5].item())
+                    prediction_list.append([x_pre, y_pre])
+                    print(prediction_list)
+                    writer.add_scalar('test/prediction', x_pre, y_pre)
             else:
-                _, _, _, batch_losses, batch_losses2 = model.sample(
+                _, _, _, batch_losses, batch_losses2, prediction = model.sample(
                     data, rollout=True, burn_in=hp['burn_in'], L_att=hp['L_att'])
+                x_pre = float(prediction[1][4].item())
+                y_pre = float(prediction[1][5].item())
+                prediction_list.append([x_pre, y_pre])
+                print(prediction_list)
+                writer.add_scalar('test/prediction', x_pre, y_pre)
 
         for key in batch_losses:
             if batch_idx == 0:
@@ -739,7 +750,7 @@ if __name__ == '__main__':
     args.m_dim = 90 if args.data == 'nba' else 34*22  # 26*17*4#34*22*4
     args.z_dim = 64
     args.h_dim = 64  # 128
-    args.rnn_dim = 100  # 100
+    args.rnn_dim = 100  # 100n
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
@@ -815,6 +826,8 @@ if __name__ == '__main__':
     }
 
     # 'pretrain' : args.pretrain,
+    
+    prediction_list = []
 
     # Set manual seed
     random.seed(args.seed)
@@ -1122,7 +1135,7 @@ if __name__ == '__main__':
     if args.n_GorS >= 50 and args.dataset == 'nba' and args.attention == 3:
         n_smp_b = 5
     rep_smp = int(n_sample/n_smp_b)
-
+    i = 0
     if True:
         print('test sample')
         # Sample trajectory
@@ -1135,6 +1148,7 @@ if __name__ == '__main__':
         loss_i = [{} for t in range(n_sample)]
         losses = {}
         losses2 = {}
+        # prediction_list = []
         for r in range(rep_smp):
             start_time = time.time()
             if r > 0:
@@ -1150,13 +1164,29 @@ if __name__ == '__main__':
 
                 if 'MACRO' in args.model:
                     macro_intents = macro_intents.transpose(0, 1)
-                    sample, macro, att, output, output2 = model.sample(
+                    sample, macro, att, output, output2, prediction = model.sample(
                         data, macro_intents, rollout=True, burn_in=args.burn_in, L_att=L_att, CF_pred=False, n_sample=n_smp_b, TEST=True)
                     att = att.detach().cpu().numpy()
                     # macro = macro.detach().cpu().numpy()
+                    x_pre = float(prediction[1][4].item())
+                    y_pre = float(prediction[1][5].item())
+                    i += 1
+                    prediction_list.append([x_pre, y_pre])
+                    print(prediction_list)
+                    writer.add_scalar('test/prediction', x_pre, y_pre)
+                    writer.add_scalar('test/prediction_x', x_pre, i)
+                    writer.add_scalar('test/prediction_y', y_pre, i)
                 else:
-                    sample, _, _, output, output2 = model.sample(
+                    sample, _, _, output, output2, prediction = model.sample(
                         data, rollout=True, burn_in=args.burn_in, L_att=L_att, CF_pred=False, n_sample=n_smp_b, TEST=True)
+                    x_pre = float(prediction[1][4].item())
+                    y_pre = float(prediction[1][5].item())
+                    prediction_list.append([x_pre, ])
+                    print(prediction_list)
+                    i += 1
+                    writer.add_scalar('test/prediction', x_pre, y_pre)
+                    writer.add_scalar('test/prediction_x', x_pre, i)
+                    writer.add_scalar('test/prediction_y', y_pre, i)
 
                 for i in range(n_smp_b):
                     sample0 = sample.detach().cpu().numpy(
@@ -1197,7 +1227,7 @@ if __name__ == '__main__':
             epoch_time = time.time() - start_time
             print('Time:\t {:.3f}'.format(epoch_time))  # Sample {} r*n_smp_b,
 
-        writer.close()
+        # writer.close()
         if True:  # create Mean + SD Tex Table for positions------------------------------------------------
             avgL2_m = {}
             avgL2_sd = {}
@@ -1280,7 +1310,7 @@ if __name__ == '__main__':
         pickle.dump(samples, open(experiment_path +
                                   '/samples.p', 'wb'), protocol=4)
         print('GT data is saved')
-
+    i = 0
     # counter factural prediction
     CF_pred = True
     if CF_pred and args.attention == 3:
@@ -1304,9 +1334,17 @@ if __name__ == '__main__':
                     # (batch, agents, time, feat) => (time, agents, batch, feat)
                 data = data.permute(2, 1, 0, 3)
                 macro_intents = macro_intents.transpose(0, 1)
-                sample, _, att, output2, _ = model.sample(
+                sample, _, att, _, output2, prediction = model.sample(
                     data, macro_intents, rollout=True, burn_in=args.burn_in, L_att=L_att, CF_pred=CF_pred, n_sample=n_smp_b, TEST=True)
                 att = att.detach().cpu().numpy()
+                x_pre = float(prediction[1][4].item())
+                y_pre = float(prediction[1][5].item())
+                prediction_list.append([x_pre, y_pre])
+                print(prediction_list)
+                i += 1
+                writer.add_scalar('test/prediction', x_pre, y_pre)
+                writer.add_scalar('test/prediction_x', x_pre, i)
+                writer.add_scalar('test/prediction_y', y_pre, i)
                 for i in range(n_smp_b):
                     sample0 = sample.detach().cpu().numpy(
                     ) if n_smp_b == 1 else sample[i].detach().cpu().numpy()
@@ -1337,3 +1375,9 @@ if __name__ == '__main__':
             os.makedirs(experiment_path)
         pickle.dump([samples, hard_att, losses2], open(
             experiment_path+'/samples.p', 'wb'), protocol=4)
+    
+    # for i in range(170):
+    #     writer.add_scalar('test/prediction', prediction_list[i][0], prediction_list[i][1])
+    # writer.add_scalars('test/prediction', prediction[0][0], prediction[0][1])
+    # print(prediction_list)
+    writer.close()

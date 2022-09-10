@@ -51,7 +51,7 @@ class RNN_GAUSS(nn.Module):
         self.att_in = False  # customized attention input
         self.res = params['res']  # False # like resnet
 
-        self.batchnorm = True  # if self.attention >= 2 else False
+        self.batchnorm = False  # if self.attention >= 2 else False
         self.in_state0 = True  # raw current state input
         self.fixedsigma = False
         print('batchnorm = '+str(self.batchnorm) +
@@ -166,7 +166,7 @@ class RNN_GAUSS(nn.Module):
 
                 # action
                 if self.dataset == 'bat':
-                    x_t = x_t0[:, :]  # vel 3dim
+                    x_t = x_t0[:, :]  # vel 3dim 2dim???
                 elif acc == 0:
                     x_t = x_t0[:, 2:4]  # vel
                 elif acc == 1:
@@ -269,9 +269,14 @@ class RNN_GAUSS(nn.Module):
                 if self.dataset == 'bat':
                     v_t1 = dec_mean_t[:, :3]
                     next_pos = current_pos + v_t1*fs
+                    # print(next_pos)
+                    # # import pdb; pdb.set_trace()
+                    # for i in range(len(next_pos)):
+                    #     if next_pos[i][1] < 0:
+                    #         print(next_pos)
                 elif acc == 1 or acc == 3:
                     v_t1 = dec_mean_t[:, 2:4]
-                    next_pos = dec_mean_t[:, :2]
+                    next_pos = dec_mean_t[:, :]
                 elif acc == 0 or acc == 2:
                     v_t1 = dec_mean_t[:, :2]
                     next_pos = current_pos + v_t1*fs

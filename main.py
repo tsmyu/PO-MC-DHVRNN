@@ -131,19 +131,19 @@ def run_epoch(train, rollout, hp):
                 else:
                     _, _, _, batch_losses, batch_losses2, prediction = model.sample(
                         data, macro_intents, rollout=True, burn_in=hp['burn_in'], L_att=hp['L_att'])
-                    x_pre = float(prediction[1][4].item())
-                    y_pre = float(prediction[1][5].item())
-                    prediction_list.append([x_pre, y_pre])
-                    print(prediction_list)
-                    writer.add_scalar('test/prediction', x_pre, y_pre)
+                    # x_pre = float(prediction[1][4].item())
+                    # y_pre = float(prediction[1][5].item())
+                    # prediction_list.append([x_pre, y_pre])
+                    # print(prediction_list)
+                    # writer.add_scalar('test/prediction', x_pre, y_pre)
             else:
                 _, _, _, batch_losses, batch_losses2, prediction = model.sample(
                     data, rollout=True, burn_in=hp['burn_in'], L_att=hp['L_att'])
-                x_pre = float(prediction[1][4].item())
-                y_pre = float(prediction[1][5].item())
-                prediction_list.append([x_pre, y_pre])
-                print(prediction_list)
-                writer.add_scalar('test/prediction', x_pre, y_pre)
+                # x_pre = float(prediction[1][4].item())
+                # y_pre = float(prediction[1][5].item())
+                # prediction_list.append([x_pre, y_pre])
+                # print(prediction_list)
+                # writer.add_scalar('test/prediction', x_pre, y_pre)
 
         for key in batch_losses:
             if batch_idx == 0:
@@ -425,7 +425,7 @@ if __name__ == '__main__':
 
     # pre-process----------------------------------------------
     args.meanHMM = True  # sorting sequences using meanHMM
-    # args.in_sma = True  # small multi-agent data
+    args.in_sma = True  # small multi-agent data
     # normalize = False
     acc = args.acc  # output: 0: vel, 1: pos+vel, 2:vel+acc, 3: pos+vel+acc
     args.vel_in = 1 if args.vel_in else 2  # input 1: vel 2: vel+acc
@@ -454,7 +454,7 @@ if __name__ == '__main__':
     elif args.data == 'bat':
         n_pl = 1
         # note default fs is 60 Hz
-        subsample_factor = 60*fs
+        subsample_factor = 50*fs
 
     args.subsample_factor = subsample_factor
     event_threshold = args.event_threshold
@@ -496,6 +496,7 @@ if __name__ == '__main__':
     # if args.normalize:
     #    game_file0 = game_file0 + '_norm'
     game_file0 = game_file0 + '_' + str(batchSize) + '_' + str(totalTimeSteps)
+    print(game_file0)
     game_files = game_file0
     game_files_val = game_file0 + '_val'+'.pkl'
     game_files_te = game_file0 + '_te'+'.pkl'
@@ -754,7 +755,7 @@ if __name__ == '__main__':
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
-    args.burn_in = int(totalTimeSteps/3)
+    args.burn_in = int(totalTimeSteps/3*2) #予測に使う長さ
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
     if args.data == 'soccer':
@@ -1130,8 +1131,8 @@ if __name__ == '__main__':
 
     # Load ground-truth states from test set
     loader = test_loader
-    n_sample = 10
-    n_smp_b = 10 if args.dataset == 'nba' or args.dataset == 'bat' else 1
+    n_sample = 10 #10
+    n_smp_b = 10 if args.dataset == 'nba' or args.dataset == 'bat' else 1 #10
     if args.n_GorS >= 50 and args.dataset == 'nba' and args.attention == 3:
         n_smp_b = 5
     rep_smp = int(n_sample/n_smp_b)
@@ -1140,6 +1141,8 @@ if __name__ == '__main__':
         print('test sample')
         # Sample trajectory
         samples = [np.zeros((args.horizon+1, args.n_agents, len_seqs_test,
+                             featurelen)) for t in range(n_sample)]
+        samples_true = [np.zeros((args.horizon+1, args.n_agents, len_seqs_test,
                              featurelen)) for t in range(n_sample)]
         hard_att = np.zeros((args.horizon, args.n_agents, len_seqs_test,
                              args.n_all_agents+1, n_sample))
@@ -1170,29 +1173,35 @@ if __name__ == '__main__':
                     # macro = macro.detach().cpu().numpy()
                     x_pre = float(prediction[1][4].item())
                     y_pre = float(prediction[1][5].item())
-                    i += 1
-                    prediction_list.append([x_pre, y_pre])
-                    print(prediction_list)
-                    writer.add_scalar('test/prediction', x_pre, y_pre)
-                    writer.add_scalar('test/prediction_x', x_pre, i)
-                    writer.add_scalar('test/prediction_y', y_pre, i)
+                    # i += 1
+                    # prediction_list.append([x_pre, y_pre])
+                    # print(prediction_list)
+                    # writer.add_scalar('test/prediction', x_pre, y_pre)
+                    # writer.add_scalar('test/prediction_x', x_pre, i)
+                    # writer.add_scalar('test/prediction_y', y_pre, i)
                 else:
                     sample, _, _, output, output2, prediction = model.sample(
                         data, rollout=True, burn_in=args.burn_in, L_att=L_att, CF_pred=False, n_sample=n_smp_b, TEST=True)
-                    x_pre = float(prediction[1][4].item())
-                    y_pre = float(prediction[1][5].item())
-                    prediction_list.append([x_pre, ])
-                    print(prediction_list)
-                    i += 1
-                    writer.add_scalar('test/prediction', x_pre, y_pre)
-                    writer.add_scalar('test/prediction_x', x_pre, i)
-                    writer.add_scalar('test/prediction_y', y_pre, i)
+                    # x_pre = float(prediction[1][4].item())
+                    # y_pre = float(prediction[1][5].item())
+                    # prediction_list.append([x_pre, ])
+                    # print(prediction_list)
+                    # i += 1
+                    # writer.add_scalar('test/prediction', x_pre, y_pre)
+                    # writer.add_scalar('test/prediction_x', x_pre, i)
+                    # writer.add_scalar('test/prediction_y', y_pre, i)
 
                 for i in range(n_smp_b):
                     sample0 = sample.detach().cpu().numpy(
                     ) if n_smp_b == 1 else sample[i].detach().cpu().numpy()
+                    data0 = data.detach().cpu().numpy(
+                    ) if n_smp_b == 1 else data.detach().cpu().numpy()
                     samples[r*n_smp_b+i][:, :, batch_idx *
-                                         batchSize_test:(batch_idx+1)*batchSize_test] = sample0[:-3]
+                                         batchSize_test:(batch_idx+1)*batchSize_test] = sample0[:-3] #なんで:-3？, 3フレームだけなくなる
+                    samples_true[r*n_smp_b+i][:, :, batch_idx *
+                                         batchSize_test:(batch_idx+1)*batchSize_test] = data0[:-3] ###ここ実際の軌跡
+                    # writer.add_scalar('test/prediction', samples_true[][0], samples_true[][1])
+                    # import pdb; pdb.set_trace()
                     if 'MACRO' in args.model:
                         hard_att[:, :, batch_idx*batchSize_test:(
                             batch_idx+1)*batchSize_test, :, r*n_smp_b+i] = att[:, :, :, :, i]
@@ -1284,7 +1293,7 @@ if __name__ == '__main__':
             pickle.dump([samples, hard_att, losses2, macros], open(
                 experiment_path+'/samples.p', 'wb'), protocol=4)
         else:
-            pickle.dump([samples, hard_att, losses2], open(
+            pickle.dump([samples, samples_true, hard_att, losses2], open(
                 experiment_path+'/samples.p', 'wb'), protocol=4)
 
     if 'MACRO' in args.model and not args.wo_macro:
@@ -1337,14 +1346,14 @@ if __name__ == '__main__':
                 sample, _, att, _, output2, prediction = model.sample(
                     data, macro_intents, rollout=True, burn_in=args.burn_in, L_att=L_att, CF_pred=CF_pred, n_sample=n_smp_b, TEST=True)
                 att = att.detach().cpu().numpy()
-                x_pre = float(prediction[1][4].item())
-                y_pre = float(prediction[1][5].item())
-                prediction_list.append([x_pre, y_pre])
-                print(prediction_list)
-                i += 1
-                writer.add_scalar('test/prediction', x_pre, y_pre)
-                writer.add_scalar('test/prediction_x', x_pre, i)
-                writer.add_scalar('test/prediction_y', y_pre, i)
+                # x_pre = float(prediction[1][4].item())
+                # y_pre = float(prediction[1][5].item())
+                # prediction_list.append([x_pre, y_pre])
+                # print(prediction_list)
+                # i += 1
+                # writer.add_scalar('test/prediction', x_pre, y_pre)
+                # writer.add_scalar('test/prediction_x', x_pre, i)
+                # writer.add_scalar('test/prediction_y', y_pre, i)
                 for i in range(n_smp_b):
                     sample0 = sample.detach().cpu().numpy(
                     ) if n_smp_b == 1 else sample[i].detach().cpu().numpy()

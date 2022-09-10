@@ -268,7 +268,7 @@ def roll_out(y_t,y_t_1,prediction_all,acc,normalize,n_roles,n_feat,ball_dim,fs,b
        
     # output
     new_feature_vector = torch.reshape(new_matrix,(batchSize,n_all_agents*n_feat))
-
+    # import pdb; pdb.set_trace()
     return new_feature_vector
 
 ######################################################################

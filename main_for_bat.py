@@ -50,7 +50,7 @@ parser.add_argument('--n_GorS', type=int, required=True)
 parser.add_argument('--n_roles', type=int, required=True)
 parser.add_argument('--val_devide', type=int, default=10)
 parser.add_argument('--hmm_iter', type=int, default=500)
-parser.add_argument('-t_step', '--totalTimeSteps', type=int, default=356)
+parser.add_argument('-t_step', '--totalTimeSteps', type=int, default=796)
 parser.add_argument('--overlap', type=int, default=40)
 parser.add_argument('-k', '--k_nearest', type=int, default=0)
 parser.add_argument('--batchsize', type=int, required=True)
@@ -417,11 +417,246 @@ def bound(val, lower, upper):
     else:
         return val
 
+def read_pickle_data():
+    try:
+        with open('bat/bat_flight_TRAIN2.pkl', 'rb') as f:
+            X_train_all = np.load(f, allow_pickle=True)
+    except:
+        raise FileExistsError("train pickle is not exist.")
+
+    # test pickle load
+    try:
+        with open('bat/bat_flight_TEST2.pkl', 'rb') as f:
+            X_test_all = np.load(f, allow_pickle=True)
+    except:
+        raise FileExistsError("test pickle is not exist.")
+    
+    return X_train_all, X_test_all
+
+def modify_train_data(train_list, n_roles, ind_train, totalTimeSteps, featurelen, len_seqs):
+    X_all = np.zeros(
+        [n_roles, len(ind_train), totalTimeSteps+4, featurelen])
+    X_val_all = np.zeros(
+        [n_roles, len(ind_val), totalTimeSteps+4, featurelen])
+    for i, X_train in enumerate(train_list):
+        i_tr = 0
+        i_val = 0
+        for j in range(len_seqs):
+            if set([j]).issubset(set(ind_train)):
+                for r in range(totalTimeSteps+4):
+                    X_all[i][i_tr][r][:] = np.squeeze(X_train[j][r, :])
+                i_tr += 1
+            else:
+                for r in range(totalTimeSteps+4):
+                    X_val_all[i][i_val][r][:] = np.squeeze(
+                        X_train[j][r, :])
+                i_val += 1
+    
+    return X_all, X_val_all
+
+def modify_test_data(test_list, n_roles, len_seqs_test, totalTimeSteps_test, featurelen):
+    X_test_test_all = np.zeros(
+        [n_roles, len_seqs_test, totalTimeSteps_test+4, featurelen])
+    
+    for i, X_test in enumerate(test_list):
+        i_te = 0
+        for j in range(len_seqs_test):
+            for r in range(totalTimeSteps_test+4):
+                X_test_test_all[i][j][r][:] = np.squeeze(X_test[j][r, :])
+    
+    return X_test_test_all
+
+def make_params(args, n_feat, outputlen0, featurelen, totalTimeSteps):
+    temperature = 1
+    if not torch.cuda.is_available():
+        args.cuda = False
+        print('cuda is not used')
+    else:
+        args.cuda = True
+        print('cuda is used')
+    
+    ball_dim = 0 if args.acc >= 0 else 2
+    params = {
+        'model': args.model,
+        'res': args.res,
+        'dataset': args.data,
+        'x_dim': outputlen0,
+        'y_dim': featurelen,
+        'z_dim': 64,
+        'h_dim': 64,
+        'rnn_dim': 100,
+        'rnn_att_dim': 32,
+        'n_layers': 2,
+        'len_seq': totalTimeSteps,
+        'n_agents': args.n_roles,
+        'in_out': args.in_out,
+        'in_sma': args.in_sma,
+        'seed': args.seed,
+        'cuda': args.cuda,
+        'n_feat': n_feat,
+        'fs': fs,
+        'embed_size': 32,
+        'embed_ball_size': 32,
+        'burn_in': int(totalTimeSteps/3*2),
+        'horizon': totalTimeSteps,
+        'acc': args.acc,
+        'body': args.body,
+        'hard_only': args.hard_only,
+        'jrk': args.jrk,
+        'lam_acc': args.lam_acc,
+        'ball_dim': ball_dim,
+        'n_all_agents': 1,
+        'temperature': temperature
+    }
+
+    return params
+
 
 if __name__ == '__main__':
     numProcess = args.numProcess
     os.environ["OMP_NUM_THREADS"] = str(numProcess)
     TEST = args.TEST
+    # bat用のコードにする
+    # シンプルにするために使うパラメータをマジックナンバー的に記入する
+    
+    args.meanHMM = True  # sorting sequences using meanHMM
+    args.in_sma = True  # small multi-agent data
+    acc = 0 # output is vel
+    vel_in = 1 # input vel
+    args.filter = True
+    assert not (args.in_out and args.in_sma)
+
+    global fs
+    fs = args.fs
+    dt = 1 / fs
+
+    if args.data == "bat":
+        n_pl = 1
+        subsample_factor = 50*dt
+    else:
+        raise FileExistsError("This branch codes only for bat data.")
+
+    args.subsample_factor = subsample_factor
+    event_threshold = args.event_threshold
+    n_roles = args.n_roles
+    n_GorS = args.n_GorS
+    val_devide = args.val_devide
+    batchSize = args.batchsize
+    totalTimeSteps = args.totalTimeSteps
+    totalTimeSteps_test = totalTimeSteps
+
+    if args.in_sma:
+        outputlen0 = 2
+        n_feat = 7
+    else:
+        outputlen0 = 3
+        n_feat = 10
+
+    X_train_all, X_test_all = read_pickle_data()
+
+    # for train data---------------
+    # 入力次元に整形、次の速度を正解データとしてYに整形
+    X_train_all, Y_train_all = get_bat_sequence_data(X_train_all, args.in_sma)
+
+    len_seqs = len(X_train_all[0])
+    X_ind = np.arange(len_seqs)
+    # train dataをtrainとvalidationに分割
+    ind_train, ind_val, _, _ = train_test_split(
+        X_ind, X_ind, test_size=1/val_devide, random_state=42)
+
+    featurelen = X_train_all[0][0].shape[1]
+    len_seqs_tr = len(ind_train)
+    offSet_tr = math.floor(len_seqs_tr / batchSize)
+    batchSize_val = len(ind_val)
+
+    X_all, X_val_all = modify_train_data(X_train_all, n_roles, ind_train, totalTimeSteps, featurelen, len_seqs)
+    del X_train_all
+    print('created train sequences--------------------------------')
+
+    # for test data-----------------
+    # 入力次元に整形、次の速度を正解データとしてYに整形
+    X_test_all, Y_test_all = get_bat_sequence_data(X_test_all, args.in_sma)
+
+    len_seqs_val = len(X_val_all[0])
+    len_seqs_test = len(X_test_all[0])
+    batchSize_test = len_seqs_test
+    len_seqs_test0 = len_seqs_test
+    ind_test = np.arange(len_seqs_test)
+
+    X_test_test_all = modify_test_data(X_test_all, n_roles, len_seqs_test, totalTimeSteps_test, featurelen)
+    print('created test sequences---------------------------------')
+
+    # save to pickle file
+    for j in range(offSet_tr):
+        tmp_data = X_all[:, j*batchSize:(j+1)*batchSize, :, :]
+        with open(f"bat/bat_tr_{j}.pkl", "wb") as f:
+            pickle.dump([tmp_data, len_seqs_val, len_seqs_test], f, protocol=5)
+    print('saved train sequences---------------------------------')
+
+    J = 2
+    batchval = int(len_seqs_val/J)
+    for j in range(J):
+        if j < J-1:
+            tmp_data = X_val_all[:, j*batchval:(j+1)*batchval, :, :]
+        else:
+            tmp_data = X_val_all[:, j*batchval:, :, :]
+        with open(f"bat/bat_val_{j}.pkl", 'wb') as f:
+            pickle.dump(tmp_data, f, protocol=5)
+    print('saved validation sequences---------------------------------')
+
+    batchte = int(len_seqs_test/J)
+    for j in range(J):
+        if j < J-1:
+            tmp_data = X_test_test_all[:, j*batchte:(j+1)*batchte, :, :]
+        else:
+            tmp_data = X_test_test_all[:, j*batchte:, :, :]
+        with open(f"bat/bat_te_{j}.pkl", 'wb') as f:
+            pickle.dump(tmp_data, f, protocol=5)
+    print('saved test sequences---------------------------------')
+
+    del X_val_all, X_test_test_all, tmp_data
+
+    # count batches
+    offSet_tr = len(glob.glob("bat/bat_tr_*.pkl"))
+    print(f"train batch num:{offSet_tr}")
+
+    # load train init data
+    with open("bat/bat_tr_0.pkl", 'rb') as f:
+        X_all, len_seqs_val, len_seqs_test = np.load(f, allow_pickle=True)
+    featurelen = X_all.shape[3]
+    len_seqs_tr = batchSize*offSet_tr
+    print('featurelen: '+str(featurelen)+' train_seqs: '+str(len_seqs_tr) +
+          ' val_seqs: '+str(len_seqs_val)+' test_seqs: '+str(len_seqs_test))
+
+    # parameters for VRNN ------------------------------------
+    init_file_name0 = f"{path_init}/sub{fs}_bat"
+    if not os.path.isdir(init_file_name0):
+        os.makedirs(init_file_name0)
+    init_pthname = f"{init_file_name0}_state_dict"
+    # init_pthname0 = f""
+    print(f"model:{init_file_name0}")
+
+    if not os.path.isdir(init_pthname):
+        os.makedirs(init_pthname)
+
+    # make params
+    params = make_params(args, n_feat, batchSize, outputlen0, featurelen, totalTimeSteps, init_file_name0)
+
+    prediction_list = []
+    # Set manual seed
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if args.cuda:
+        torch.cuda.manual_seed(args.seed)
+    
+    # Load model
+    model = load_model(args.model, params, parser)
+    if args.cuda:
+        model.cuda()
+
+
+
     # pre-process----------------------------------------------
     args.meanHMM = True  # sorting sequences using meanHMM
     args.in_sma = True  # small multi-agent data

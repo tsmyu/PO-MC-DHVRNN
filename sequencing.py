@@ -87,7 +87,7 @@ def get_bat_sequence_data(sequence_data, in_sma):
         one_bat_data = sequence_data[0] #1個体を仮定
         for idx, one_episode_data in enumerate(one_bat_data):
             fix_data[0][idx][:][:] = one_episode_data[:-1][:]
-            ans_data[0][idx][:][:] = one_episode_data[:-1, 4:7]
+            ans_data[0][idx][:][:] = one_episode_data[:-1, 3:6]
     
 
     return fix_data, ans_data

@@ -27,7 +27,7 @@ class GeneralDataset(Dataset):
             batch_no = index // self.batchsize
             batch_index = index % self.batchsize
             with open(self.game_files+'_tr'+str(batch_no)+'.pkl', 'rb') as f:
-                data,_,_,label = cloudpickle.load(f) # ,allow_pickle=True
+                data,_,_ = cloudpickle.load(f) # ,allow_pickle=True
         else:
             J = 5 if self.n_GorS == 1 else 2
             print(self.len_seqs)
@@ -39,7 +39,7 @@ class GeneralDataset(Dataset):
                 batch_index = index % int(self.len_seqs/J) + int(self.len_seqs/J)
             filename = self.game_files+'_val' if self.train == 0 else self.game_files +'_te'
             with open(filename+'_'+str(batch_no)+'.pkl', 'rb') as f:
-                data,label = cloudpickle.load(f) 
+                data = cloudpickle.load(f) 
 
         self.data = torch.Tensor(data)
         self.data = self.data.permute(1, 0, 2, 3)
@@ -47,7 +47,7 @@ class GeneralDataset(Dataset):
         #if self.normalize_data:
         #    self.data = self.dataset.normalize(self.data,self.datasets)
 
-        return self.data[batch_index], label[batch_index] # data[index] 
+        return self.data[batch_index] # data[index] 
 
     def __len__(self):
         return self.len_seqs

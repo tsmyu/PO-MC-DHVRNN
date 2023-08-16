@@ -66,7 +66,7 @@ parser.add_argument(
     required=True,
     help="event with frames less than the threshold will be removed",
 )
-parser.add_argument("--fs", type=int, default=100)
+parser.add_argument("--fs", type=int, default=10)
 # parser.add_argument('-subs_fac','--subsample_factor', type=int, required=True, help='too much data should be downsampled by subs_fac')
 # parser.add_argument('--filter', action='store_true')
 parser.add_argument("--body", action="store_true")
@@ -95,9 +95,10 @@ main_dir = "../"  # './'
 game_dir = main_dir + "data_" + args.data + "/"
 Data = LoadData(main_dir, game_dir, args.data)
 path_init = "./weights/"  # './weights_vrnn/init/'
+args.seed = 200
 
 
-def run_epoch(train, rollout, hp):
+def run_epoch(model, train, rollout, hp):
     loader = train_loader if train == 1 else val_loader if train == 0 else test_loader
 
     losses = {}
@@ -340,14 +341,14 @@ def unnormalize(data, args):
 
 def read_pickle_data():
     try:
-        with open("data/bats/bat_flight_TRAIN2.pkl", "rb") as f:
+        with open("data/bats/BAT_FLIGHT_TRAIN.pkl", "rb") as f:
             X_train_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("train pickle is not exist.")
 
     # test pickle load
     try:
-        with open("data/bats/bat_flight_TEST2.pkl", "rb") as f:
+        with open("data/bats/BAT_FLIGHT_TEST.pkl", "rb") as f:
             X_test_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("test pickle is not exist.")
@@ -402,6 +403,8 @@ def make_params(args, n_feat, outputlen0, featurelen, totalTimeSteps):
         print("cuda is used")
 
     ball_dim = 0 if args.acc >= 0 else 2
+    args.burn_in = int(totalTimeSteps / 3 * 2)
+    args.horizon = totalTimeSteps
     params = {
         "model": args.model,
         "res": args.res,
@@ -415,6 +418,7 @@ def make_params(args, n_feat, outputlen0, featurelen, totalTimeSteps):
         "n_layers": 2,
         "len_seq": totalTimeSteps,
         "n_agents": args.n_roles,
+        "normalize": args.normalize,
         "in_out": args.in_out,
         "in_sma": args.in_sma,
         "seed": args.seed,
@@ -423,8 +427,8 @@ def make_params(args, n_feat, outputlen0, featurelen, totalTimeSteps):
         "fs": fs,
         "embed_size": 32,
         "embed_ball_size": 32,
-        "burn_in": int(totalTimeSteps / 3 * 2),
-        "horizon": totalTimeSteps,
+        "burn_in": args.burn_in,
+        "horizon": args.horizon,
         "acc": args.acc,
         "body": args.body,
         "hard_only": args.hard_only,
@@ -446,7 +450,7 @@ if __name__ == "__main__":
     # シンプルにするために使うパラメータをマジックナンバー的に記入する
 
     args.meanHMM = True  # sorting sequences using meanHMM
-    args.in_sma = True  # small multi-agent data
+    args.in_sma = True  # True: 2dim, False: 3dim
     acc = 0  # output is vel
     vel_in = 1  # input vel
     args.filter = True
@@ -470,13 +474,15 @@ if __name__ == "__main__":
     batchSize = args.batchsize
     totalTimeSteps = args.totalTimeSteps
     totalTimeSteps_test = totalTimeSteps
+    lidar_dim = 201
+    args.n_all_agents = 1
 
     if args.in_sma:
         outputlen0 = 2
-        n_feat = 7
+        n_feat = 5 + lidar_dim
     else:
         outputlen0 = 3
-        n_feat = 10
+        n_feat = 8 + lidar_dim
 
     X_train_all, X_test_all = read_pickle_data()
 
@@ -495,7 +501,6 @@ if __name__ == "__main__":
     len_seqs_tr = len(ind_train)
     offSet_tr = math.floor(len_seqs_tr / batchSize)
     batchSize_val = len(ind_val)
-
     X_all, X_val_all = modify_train_data(
         X_train_all, n_roles, ind_train, totalTimeSteps, featurelen, len_seqs
     )
@@ -520,7 +525,7 @@ if __name__ == "__main__":
     # save to pickle file
     for j in range(offSet_tr):
         tmp_data = X_all[:, j * batchSize : (j + 1) * batchSize, :, :]
-        with open(f"bat/bat_tr_{j}.pkl", "wb") as f:
+        with open(f"data/bats/bat_tr_{j}.pkl", "wb") as f:
             pickle.dump([tmp_data, len_seqs_val, len_seqs_test], f, protocol=5)
     print("saved train sequences---------------------------------")
 
@@ -531,7 +536,7 @@ if __name__ == "__main__":
             tmp_data = X_val_all[:, j * batchval : (j + 1) * batchval, :, :]
         else:
             tmp_data = X_val_all[:, j * batchval :, :, :]
-        with open(f"bat/bat_val_{j}.pkl", "wb") as f:
+        with open(f"data/bats/bat_val_{j}.pkl", "wb") as f:
             pickle.dump(tmp_data, f, protocol=5)
     print("saved validation sequences---------------------------------")
 
@@ -541,18 +546,18 @@ if __name__ == "__main__":
             tmp_data = X_test_test_all[:, j * batchte : (j + 1) * batchte, :, :]
         else:
             tmp_data = X_test_test_all[:, j * batchte :, :, :]
-        with open(f"bat/bat_te_{j}.pkl", "wb") as f:
+        with open(f"data/bats/bat_te_{j}.pkl", "wb") as f:
             pickle.dump(tmp_data, f, protocol=5)
     print("saved test sequences---------------------------------")
 
     del X_val_all, X_test_test_all, tmp_data
 
     # count batches
-    offSet_tr = len(glob.glob("bat/bat_tr_*.pkl"))
+    offSet_tr = len(glob.glob("data/bats/bat_tr_*.pkl"))
     print(f"train batch num:{offSet_tr}")
 
     # load train init data
-    with open("bat/bat_tr_0.pkl", "rb") as f:
+    with open("data/bats/bat_tr_0.pkl", "rb") as f:
         X_all, len_seqs_val, len_seqs_test = np.load(f, allow_pickle=True)
     featurelen = X_all.shape[3]
     len_seqs_tr = batchSize * offSet_tr
@@ -579,9 +584,7 @@ if __name__ == "__main__":
         os.makedirs(init_pthname)
 
     # make params
-    params = make_params(
-        args, n_feat, batchSize, outputlen0, featurelen, totalTimeSteps, init_file_name0
-    )
+    params = make_params(args, n_feat, outputlen0, featurelen, totalTimeSteps)
     # Set manual seed
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -652,7 +655,7 @@ if __name__ == "__main__":
     writer = tbx.SummaryWriter()
     best_val_loss = 0
     epochs_since_best = 0
-    lr = max(args.start_lr, args.min_lr)
+    lr = 1e-3
     epoch_first_best = -1
 
     pretrain_time = 0
@@ -664,7 +667,7 @@ if __name__ == "__main__":
     hyperparams = {
         "model": args.model,
         "acc": acc,
-        "burn_in": args.born_in,
+        "burn_in": params["horizon"],
         "L_att": L_att,
         "pretrain": (0 < pretrain_time),
         "pretrain2": (0 < pretrain2_time),
@@ -692,10 +695,15 @@ if __name__ == "__main__":
             start_time = time.time()
             # train
             # train run
-            train_loss, train_loss2 = run_epoch(train=1, rollout=False, hp=hyperparams)
-            print("Train:\t" + loss_str(train_loss) + "|" + loss_str(train_loss2))
+            train_loss, train_loss2 = run_epoch(
+                model, train=1, rollout=False, hp=hyperparams
+            )
+            # print(f"Train:{loss_str(train_loss)} | {loss_str(train_loss2)}")
+            print(f"Train:{train_loss} | {train_loss2}")
             # validation run
-            val_loss, val_loss2 = run_epoch(train=0, rollout=True, hp=hyperparams)
+            val_loss, val_loss2 = run_epoch(
+                model, train=0, rollout=True, hp=hyperparams
+            )
             print("RO Val:\t" + loss_str(val_loss) + "|" + loss_str(val_loss2))
 
             total_val_loss = sum(val_loss.values())
@@ -755,17 +763,17 @@ if __name__ == "__main__":
     if True:
         print("test sample")
         samples = [
-            np.zeros((args.horizon + 1, args.n_agents, len_seqs_test, featurelen))
+            np.zeros((args.horizon + 1, args.n_roles, len_seqs_test, featurelen))
             for t in range(n_sample)
         ]
         samples_true = [
-            np.zeros((args.horizon + 1, args.n_agents, len_seqs_test, featurelen))
+            np.zeros((args.horizon + 1, args.n_roles, len_seqs_test, featurelen))
             for t in range(n_sample)
         ]
         hard_att = np.zeros(
             (
                 args.horizon,
-                args.n_agents,
+                args.n_roles,
                 len_seqs_test,
                 args.n_all_agents + 1,
                 n_sample,

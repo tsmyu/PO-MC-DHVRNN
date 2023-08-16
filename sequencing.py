@@ -9,6 +9,7 @@ import time
 import numpy as np
 import pandas as pd
 from scipy import signal
+
 # Keisuke Fujii, 2020
 # modifying the code https://github.com/samshipengs/Coordinated-Multi-Agent-Imitation-Learning
 
@@ -18,49 +19,50 @@ from scipy import signal
 
 
 def subsample_sequence(events, subsample_factor, random_sample=False):
-    if subsample_factor == 0 or round(subsample_factor*10) == 10:
+    if subsample_factor == 0 or round(subsample_factor * 10) == 10:
         return events
 
     # random_state=42):
     def subsample_sequence_(moments, subsample_factor, random_sample=False):
-        ''' 
-            moments: a list of moment 
-            subsample_factor: number of folds less than orginal
-            random_sample: if true then sample a random one from the window of subsample_factor size
-        '''
+        """
+        moments: a list of moment
+        subsample_factor: number of folds less than orginal
+        random_sample: if true then sample a random one from the window of subsample_factor size
+        """
         seqs = np.copy(moments)
         moments_len = seqs.shape[0]
         if subsample_factor > 0:
-            n_intervals = moments_len//subsample_factor  # number of subsampling intervals
+            n_intervals = (
+                moments_len // subsample_factor
+            )  # number of subsampling intervals
         else:
-
-            n_intervals = int(moments_len//-subsample_factor)
+            n_intervals = int(moments_len // -subsample_factor)
 
         left = moments_len % subsample_factor  # reminder
 
         if random_sample:
             if left != 0:
-                rs = [np.random.randint(0, subsample_factor) for _ in range(
-                    n_intervals)] + [np.random.randint(0, left)]
+                rs = [
+                    np.random.randint(0, subsample_factor) for _ in range(n_intervals)
+                ] + [np.random.randint(0, left)]
             else:
-                rs = [np.random.randint(0, subsample_factor)
-                      for _ in range(n_intervals)]
+                rs = [
+                    np.random.randint(0, subsample_factor) for _ in range(n_intervals)
+                ]
             interval_ind = range(0, moments_len, subsample_factor)
             # the final random index relative to the input
-            rs_ind = np.array([rs[i] + interval_ind[i]
-                               for i in range(len(rs))])
+            rs_ind = np.array([rs[i] + interval_ind[i] for i in range(len(rs))])
             return seqs[rs_ind, :]
         else:
-            if round(subsample_factor*10) == round(subsample_factor)*10:  # int
+            if round(subsample_factor * 10) == round(subsample_factor) * 10:  # int
                 s_ind = np.arange(0, moments_len, subsample_factor)
                 return seqs[s_ind, :]
             else:
                 # only when 10 Hz undersampling in NBA (25 Hz)
-                if round(subsample_factor*10) == 25:
+                if round(subsample_factor * 10) == 25:
                     up = 2
                     down = 5
-                seqs2 = signal.resample_poly(
-                    seqs, up, down, axis=0, padtype='line')
+                seqs2 = signal.resample_poly(seqs, up, down, axis=0, padtype="line")
                 seqs2 = seqs2[1:-1]
 
                 return seqs2
@@ -71,42 +73,69 @@ def subsample_sequence(events, subsample_factor, random_sample=False):
 def get_bat_sequence_data(sequence_data, in_sma):
     # data number for a episode - 1
     fix_data = np.zeros(
-        (sequence_data.shape[0], sequence_data.shape[1], sequence_data.shape[2]-1, sequence_data.shape[3]))
+        (
+            sequence_data.shape[0],
+            sequence_data.shape[1],
+            sequence_data.shape[2] - 1,
+            sequence_data.shape[3],
+        )
+    )
     if in_sma:
         # 2次元データ用
         ans_data = np.zeros(
-            (sequence_data.shape[0], sequence_data.shape[1], sequence_data.shape[2]-1, 2))
-        one_bat_data = sequence_data[0] #1個体を仮定
+            (
+                sequence_data.shape[0],
+                sequence_data.shape[1],
+                sequence_data.shape[2] - 1,
+                2,
+            )
+        )
+        one_bat_data = sequence_data[0]  # 1個体を仮定
         for idx, one_episode_data in enumerate(one_bat_data):
             fix_data[0][idx][:][:] = one_episode_data[:-1][:]
             ans_data[0][idx][:][:] = one_episode_data[:-1, 2:4]
     else:
         # 3次元データ用
         ans_data = np.zeros(
-            (sequence_data.shape[0], sequence_data.shape[1], sequence_data.shape[2]-1, 3))
-        one_bat_data = sequence_data[0] #1個体を仮定
+            (
+                sequence_data.shape[0],
+                sequence_data.shape[1],
+                sequence_data.shape[2] - 1,
+                3,
+            )
+        )
+        one_bat_data = sequence_data[0]  # 1個体を仮定
         for idx, one_episode_data in enumerate(one_bat_data):
             fix_data[0][idx][:][:] = one_episode_data[:-1][:]
             ans_data[0][idx][:][:] = one_episode_data[:-1, 3:6]
-    
 
     return fix_data, ans_data
 
 
-def get_sequences(single_game, policy, sequence_length, overlap, n_pl, k_nearest, n_feat, velocity=0, in_sma=False):
-    ''' create events where each event is a list of sequences from
-        single_game with required sequence_legnth and overlap
+def get_sequences(
+    single_game,
+    policy,
+    sequence_length,
+    overlap,
+    n_pl,
+    k_nearest,
+    n_feat,
+    velocity=0,
+    in_sma=False,
+):
+    """create events where each event is a list of sequences from
+    single_game with required sequence_legnth and overlap
 
-        single_game: A list of events
-        sequence_length: the desired length of each event (a sequence of moments)
-        overlap: how much overlap wanted for the sequence generation
+    single_game: A list of events
+    sequence_length: the desired length of each event (a sequence of moments)
+    overlap: how much overlap wanted for the sequence generation
 
-    '''
+    """
 
     X_all = []
     Y_all = []
 
-    ''' 
+    """ 
     # original---(velocity)
     # basketball:
        0-254: static_feature (positions and angles)
@@ -171,10 +200,9 @@ def get_sequences(single_game, policy, sequence_length, overlap, n_pl, k_nearest
         + ball pos/vel (+ team one-hot)
         total: 15*22 + 4 = 334 (soccer) or 15*10 + 4 = 154 (NBA)
 
-    '''
-    npl = n_pl*2
-    index0 = np.array(range(single_game[0].shape[1])).astype(
-        int)  # length of features
+    """
+    npl = n_pl * 2
+    index0 = np.array(range(single_game[0].shape[1])).astype(int)  # length of features
 
     for p in policy:
         X = []
@@ -185,25 +213,27 @@ def get_sequences(single_game, policy, sequence_length, overlap, n_pl, k_nearest
             for pl in range(npl):
                 if not in_sma:
                     # distance between players 0
-                    index = np.append(index, index0[106+pl+p*npl*4])
-                    index = np.append(index, index0[116+pl+p*npl*4])  # cos 1
-                    index = np.append(index, index0[126+pl+p*npl*4])  # sin 2
-                index = np.append(index, index0[pl*2:pl*2+2])  # positions 3-4
+                    index = np.append(index, index0[106 + pl + p * npl * 4])
+                    index = np.append(index, index0[116 + pl + p * npl * 4])  # cos 1
+                    index = np.append(index, index0[126 + pl + p * npl * 4])  # sin 2
+                index = np.append(index, index0[pl * 2 : pl * 2 + 2])  # positions 3-4
                 if velocity >= 0:
                     # velocities 5-6
-                    index = np.append(index, index0[506+pl*2:506+pl*2+2])
+                    index = np.append(index, index0[506 + pl * 2 : 506 + pl * 2 + 2])
                 if velocity == 2:
                     index = np.append(
-                        index, index0[529+pl*2:529+pl*2+2])  # acceleration
+                        index, index0[529 + pl * 2 : 529 + pl * 2 + 2]
+                    )  # acceleration
                 if not in_sma:
                     # relation with the goal 7-9 (th is not used)
-                    index = np.append(index, index0[66+pl:95+pl:10])
+                    index = np.append(index, index0[66 + pl : 95 + pl : 10])
                     # relation with the ball 10-12
-                    index = np.append(index, index0[26+pl:55+pl:10])
+                    index = np.append(index, index0[26 + pl : 55 + pl : 10])
             # k nearest players
-            if k_nearest > 0 and k_nearest < 10:  # players regardless of attackers and defenders
-                index = np.append(index, np.zeros(
-                    n_feat*k_nearest))  # temporary
+            if (
+                k_nearest > 0 and k_nearest < 10
+            ):  # players regardless of attackers and defenders
+                index = np.append(index, np.zeros(n_feat * k_nearest))  # temporary
 
             # ball positions (excluding 3d)
             index = np.append(index, index0[20:22])
@@ -217,25 +247,30 @@ def get_sequences(single_game, policy, sequence_length, overlap, n_pl, k_nearest
             for pl in range(npl):
                 if not in_sma:
                     # distance between players 0
-                    index = np.append(index, index0[222+pl+p*npl*4])
-                    index = np.append(index, index0[244+pl+p*npl*4])  # cos 1
-                    index = np.append(index, index0[266+pl+p*npl*4])  # sin 2
-                index = np.append(index, index0[pl*2:pl*2+2])  # positions 3-4
+                    index = np.append(index, index0[222 + pl + p * npl * 4])
+                    index = np.append(index, index0[244 + pl + p * npl * 4])  # cos 1
+                    index = np.append(index, index0[266 + pl + p * npl * 4])  # sin 2
+                index = np.append(index, index0[pl * 2 : pl * 2 + 2])  # positions 3-4
                 if velocity >= 0:
                     # velocities 5-6
-                    index = np.append(index, index0[2158+pl*2:2158+pl*2+2])
+                    index = np.append(index, index0[2158 + pl * 2 : 2158 + pl * 2 + 2])
                 if velocity == 2:
                     # velocities 5-6
-                    index = np.append(index, index0[2204+pl*2:2204+pl*2+2])
+                    index = np.append(index, index0[2204 + pl * 2 : 2204 + pl * 2 + 2])
                 if not in_sma:
                     # relation with the goal 7-9 (th is not used)
-                    index = np.append(index, index0[134+pl:134+npl*3+pl-1:npl])
+                    index = np.append(
+                        index, index0[134 + pl : 134 + npl * 3 + pl - 1 : npl]
+                    )
                     # relation with the ball 10-12
-                    index = np.append(index, index0[46+pl:46+npl*3+pl-1:npl])
+                    index = np.append(
+                        index, index0[46 + pl : 46 + npl * 3 + pl - 1 : npl]
+                    )
             # k nearest players
-            if k_nearest > 0 and k_nearest < 10:  # players regardless of attackers and defenders
-                index = np.append(index, np.zeros(
-                    n_feat*k_nearest))  # temporary
+            if (
+                k_nearest > 0 and k_nearest < 10
+            ):  # players regardless of attackers and defenders
+                index = np.append(index, np.zeros(n_feat * k_nearest))  # temporary
 
             index = np.append(index, index0[44:46])  # ball positions
             if velocity >= 0:
@@ -254,22 +289,30 @@ def get_sequences(single_game, policy, sequence_length, overlap, n_pl, k_nearest
 
             for t in range(i_len):
                 # nearest players
-                if k_nearest > 0 and k_nearest < 10:  # players regardless of attackers and defenders
+                if (
+                    k_nearest > 0 and k_nearest < 10
+                ):  # players regardless of attackers and defenders
                     # index of distances
-                    dist = i[t][index[0:npl*n_feat:n_feat]]
-                    ind_nearest = dist.argsort()[0:(k_nearest+1)]
+                    dist = i[t][index[0 : npl * n_feat : n_feat]]
+                    ind_nearest = dist.argsort()[0 : (k_nearest + 1)]
                     # eliminate zero and duplication
-                    ind_nearest = ind_nearest[np.nonzero(
-                        ind_nearest)][:k_nearest]
+                    ind_nearest = ind_nearest[np.nonzero(ind_nearest)][:k_nearest]
                     for k in range(k_nearest):
-                        index[n_feat*npl+k*n_feat:n_feat*npl +
-                              (k+1)*n_feat] = index[ind_nearest[k]*n_feat:ind_nearest[k]*n_feat+n_feat]
+                        index[
+                            n_feat * npl + k * n_feat : n_feat * npl + (k + 1) * n_feat
+                        ] = index[
+                            ind_nearest[k] * n_feat : ind_nearest[k] * n_feat + n_feat
+                        ]
                 sequence0[t, :] = i2[t, index].T
 
             # create sequences
             if i_len >= sequence_length:
-                sequences0 = [sequence0[-sequence_length:, :] if j + sequence_length > i_len-1 else sequence0[j:j+sequence_length, :]
-                              for j in range(0, i_len-overlap, sequence_length-overlap)]  # for the states
+                sequences0 = [
+                    sequence0[-sequence_length:, :]
+                    if j + sequence_length > i_len - 1
+                    else sequence0[j : j + sequence_length, :]
+                    for j in range(0, i_len - overlap, sequence_length - overlap)
+                ]  # for the states
                 # sequences = [np.array(i[-sequence_length:]) if j + sequence_length > i_len-1 else np.array(i[j:j+sequence_length]) \
                 #    for j in range(0, i_len-overlap, sequence_length-overlap)] # for the actions
 
@@ -278,17 +321,43 @@ def get_sequences(single_game, policy, sequence_length, overlap, n_pl, k_nearest
 
                 if velocity == 2:
                     action = [
-                        np.roll(kk[:, p*n_feat+3:p*n_feat+9], -1, axis=0)[:-1, :] for kk in sequences0]
+                        np.roll(kk[:, p * n_feat + 3 : p * n_feat + 9], -1, axis=0)[
+                            :-1, :
+                        ]
+                        for kk in sequences0
+                    ]
                     # action2 = [np.roll(kk[:, p*2:p*2+2], -1, axis=0)[:-1, :] for kk in sequences]
                 elif velocity == 1:
                     action = [
-                        np.roll(kk[:, p*n_feat+3:p*n_feat+7], -1, axis=0)[:-1, :] for kk in sequences0]
+                        np.roll(kk[:, p * n_feat + 3 : p * n_feat + 7], -1, axis=0)[
+                            :-1, :
+                        ]
+                        for kk in sequences0
+                    ]
                 elif velocity:
-                    action = [np.roll(kk[:, [p*n_feat+5, p*n_feat+6, p*n_feat+3,
-                                             p*n_feat+4]], -1, axis=0)[:-1, :] for kk in sequences0]
+                    action = [
+                        np.roll(
+                            kk[
+                                :,
+                                [
+                                    p * n_feat + 5,
+                                    p * n_feat + 6,
+                                    p * n_feat + 3,
+                                    p * n_feat + 4,
+                                ],
+                            ],
+                            -1,
+                            axis=0,
+                        )[:-1, :]
+                        for kk in sequences0
+                    ]
                 else:  # position only
                     action = [
-                        np.roll(kk[:, p*n_feat+3:p*n_feat+5], -1, axis=0)[:-1, :] for kk in sequences0]
+                        np.roll(kk[:, p * n_feat + 3 : p * n_feat + 5], -1, axis=0)[
+                            :-1, :
+                        ]
+                        for kk in sequences0
+                    ]
                     # action = [np.roll(kk[:, p*2:p*2+2], -1, axis=0)[:-1, :] for kk in sequences] # action
                 # sequences = [l[:-1, :] for l in sequences] # since target has dropped one then sequence also drop one
                 X += state

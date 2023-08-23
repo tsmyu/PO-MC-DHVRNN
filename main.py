@@ -454,7 +454,7 @@ if __name__ == '__main__':
     elif args.data == 'bat':
         n_pl = 1
         # note default fs is 60 Hz
-        subsample_factor = 50*fs
+        subsample_factor = 10*fs
 
     args.subsample_factor = subsample_factor
     event_threshold = args.event_threshold
@@ -508,9 +508,9 @@ if __name__ == '__main__':
 
     if acc == 0 or acc == -1 or acc == 4:  # vel/pos/acc only
         if args.in_sma:
-            outputlen0 = 2
+            outputlen0 = 2 + 1 ### +1 : pulse flag
         else:
-            outputlen0 = 3
+            outputlen0 = 3 + 1
     elif acc == 3:  # all
         outputlen0 = 6
     else:
@@ -520,7 +520,7 @@ if __name__ == '__main__':
     numOfPrevSteps = 1
     totalTimeSteps_test = totalTimeSteps
     if args.in_sma:
-        n_feat = 7
+        n_feat = 206 #7
         # n_feat = 6 if vel_in == 2 else 4
         # if acc == -1:
         #     n_feat = 2
@@ -533,14 +533,14 @@ if __name__ == '__main__':
 
     # train pickle load
     try:
-        with open(os.path.dirname(game_files)+'/bat_flight_TRAIN2.pkl', 'rb') as f:
+        with open(os.path.dirname(game_files)+'/bat_flight_TRAIN.pkl', 'rb') as f:
             X_train_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("train pickle is not exist.")
 
     # test pickle load
     try:
-        with open(os.path.dirname(game_files)+'/bat_flight_TEST2.pkl', 'rb') as f:
+        with open(os.path.dirname(game_files)+'/bat_flight_TEST.pkl', 'rb') as f:
             X_test_all = np.load(f, allow_pickle=True)
     except:
         raise FileExistsError("test pickle is not exist.")
@@ -755,7 +755,7 @@ if __name__ == '__main__':
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
-    args.burn_in = int(totalTimeSteps/3*2) #予測に使う長さ
+    args.burn_in = int(totalTimeSteps/4) #予測するために使う長さ
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
     if args.data == 'soccer':
@@ -1122,12 +1122,14 @@ if __name__ == '__main__':
         init_pthname, params['model']), map_location=lambda storage, loc: storage)
     model.load_state_dict(state_dict)
     # for tensorboardX of model graph
+    from torch.utils.tensorboard import SummaryWriter
     # dataiter = iter(train_loader)
     # data_for_visual, labels = dataiter.next()
     # data_for_visual = data_for_visual.permute(2, 1, 0, 3)
+    # writer = SummaryWriter()
     # dummy_input = torch.rand((4,1,100,10))
     # model_wrapper = ModelWrapper(model)
-    # writer.add_graph(model_wrapper, data_for_visual)
+    # writer.add_graph(model, dummy_input)
 
     # Load ground-truth states from test set
     loader = test_loader

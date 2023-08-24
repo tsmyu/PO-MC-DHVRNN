@@ -144,10 +144,10 @@ class RNN_GAUSS(nn.Module):
         out2 = {}
         out["L_rec"] = torch.zeros(1).to(device)
         out["pulse_flag"] = torch.zeros(1).to(device)
-        out2["e_pos"] = torch.zeros(1)
-        out2["e_vel"] = torch.zeros(1)
-        out2["e_acc"] = torch.zeros(1)
-        out2["e_jrk"] = torch.zeros(1)
+        out2["e_pos"] = torch.zeros(1).to(device)
+        out2["e_vel"] = torch.zeros(1).to(device)
+        out2["e_acc"] = torch.zeros(1).to(device)
+        out2["e_jrk"] = torch.zeros(1).to(device)
 
         n_agents = self.params["n_agents"]
         n_feat = self.params["n_feat"]  # added
@@ -385,7 +385,6 @@ class RNN_GAUSS(nn.Module):
                     prediction_all[:, i, :] = dec_mean_t[:, :x_dim]
 
                     # error (not used when backward)
-                    print(type(next_pos), type(x_t0[:, :2]))
                     out2["e_pos"] += batch_error(next_pos, x_t0[:, :2])
                     out2["e_vel"] += batch_error(v_t1, v0_t1)
 
@@ -564,7 +563,12 @@ class RNN_GAUSS(nn.Module):
                             x_t0 = states[t + 1][i][
                                 :, n_feat * i + 2 : n_feat * i + 4
                             ].clone()
-                            next_pulse = states[t + 1][i][:, n_feat * i + 5].clone()
+                            next_pulse = (
+                                states[t + 1][i][:, n_feat * i + 5]
+                                .clone()
+                                .reshape(-1, 1)
+                            )
+                            x_t0_with_pulse = torch.cat((x_t0, next_pulse), dim=1)
                         else:  # 3dim
                             x_t0 = states[t + 1][i][
                                 :, n_feat * i + 3 : n_feat * i + 6
@@ -585,7 +589,7 @@ class RNN_GAUSS(nn.Module):
 
                     # action
                     if self.dataset == "bat":
-                        x_t = x_t0[:, :]  # vel 3dim
+                        x_t = x_t0_with_pulse[:, :]  # vel 3dim
                     elif acc == 0:
                         x_t = x_t0[:, 2:4]  # vel
                     elif acc == 1:
@@ -602,6 +606,10 @@ class RNN_GAUSS(nn.Module):
                         if self.in_sma:  # 2dim
                             current_pos = y_t[:, n_feat * i : n_feat * i + 2]
                             current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
+                            flag_pulse = y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                            current_vel_with_pulse = torch.cat(
+                                (current_vel, flag_pulse), dim=1
+                            )
                             v0_t1 = x_t0
                             v0_t2 = states[t + 2][i][
                                 :, n_feat * i + 2 : n_feat * i + 4
@@ -655,7 +663,7 @@ class RNN_GAUSS(nn.Module):
 
                     if self.in_state0:
                         if self.dataset == "bat":
-                            state_in0 = current_vel
+                            state_in0 = current_vel_with_pulse
                         elif acc == 3:
                             state_in0 = torch.cat(
                                 [current_pos, current_vel, current_acc], 1
@@ -688,7 +696,9 @@ class RNN_GAUSS(nn.Module):
                             dec_mean_t.shape
                         ).to(device)
                     # objective function
-                    out["L_rec"][n] += nll_gauss(dec_mean_t, dec_std_t, x_t, Sum)
+                    out["L_rec"][n] += nll_gauss(
+                        dec_mean_t[:, :2], dec_std_t[:, :2], x_t0, Sum
+                    )
                     out["pulse_flag"][n] += nll_gauss(
                         dec_mean_t[:, 2], dec_std_t[:, 2], next_pulse, Sum
                     )
@@ -696,7 +706,7 @@ class RNN_GAUSS(nn.Module):
                     # body constraint
                     # acc
                     if self.dataset == "bat":
-                        v_t1 = dec_mean_t[:, :3]
+                        v_t1 = dec_mean_t[:, :2]
                         next_pos = current_pos + v_t1 * fs
                     elif acc == 1 or acc == 3:
                         v_t1 = dec_mean_t[:, 2:4]

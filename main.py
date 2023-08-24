@@ -28,6 +28,7 @@ import hmmlearn
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import torch.profiler
 
 # from model_wrapper import ModelWrapper
 
@@ -103,7 +104,6 @@ def run_epoch(train, rollout, hp):
     losses = {}
     losses2 = {}
     for batch_idx, (data, macro_intents) in enumerate(loader):
-        # print(str(batch_idx))
         d1 = {"batch_idx": batch_idx}
         hp.update(d1)
 
@@ -562,13 +562,14 @@ if __name__ == "__main__":
     # We are only looking at the most recent character each time.
     numOfPrevSteps = 1
     totalTimeSteps_test = totalTimeSteps
+    states_num = 201
     if args.in_sma:
-        n_feat = 7
+        n_feat = 6 + states_num
         # n_feat = 6 if vel_in == 2 else 4
         # if acc == -1:
         #     n_feat = 2
     else:
-        n_feat = 10
+        n_feat = 9 + states_num
     # elif args.in_out:
     #     n_feat = 6 if vel_in == 2 else 4
     # else:

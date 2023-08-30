@@ -21,6 +21,8 @@ import torch.nn.functional as F
 # Keisuke Fujii, 2020
 # modifying the code https://github.com/ezhan94/multiagent-programmatic-supervision
 
+weight_pulse_flag = 1.0
+
 
 class RNN_GAUSS(nn.Module):
     """RNN model for each agent."""
@@ -180,6 +182,7 @@ class RNN_GAUSS(nn.Module):
                         ].clone()
                         next_pulse = (
                             states[t + 1][i][:, n_feat * i + 5].clone().reshape(-1, 1)
+                            * weight_pulse_flag
                         )
                         x_t0_with_pulse = torch.cat((x_t0, next_pulse), dim=1)
 
@@ -228,7 +231,10 @@ class RNN_GAUSS(nn.Module):
                     if self.in_sma:  # 2dim
                         current_pos = y_t[:, n_feat * i : n_feat * i + 2]
                         current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
-                        flag_pulse = y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                        flag_pulse = (
+                            y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                            * weight_pulse_flag
+                        )
                         current_vel_with_pulse = torch.cat(
                             (current_vel, flag_pulse), dim=1
                         )
@@ -567,6 +573,7 @@ class RNN_GAUSS(nn.Module):
                                 states[t + 1][i][:, n_feat * i + 5]
                                 .clone()
                                 .reshape(-1, 1)
+                                * weight_pulse_flag
                             )
                             x_t0_with_pulse = torch.cat((x_t0, next_pulse), dim=1)
                         else:  # 3dim
@@ -606,7 +613,10 @@ class RNN_GAUSS(nn.Module):
                         if self.in_sma:  # 2dim
                             current_pos = y_t[:, n_feat * i : n_feat * i + 2]
                             current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
-                            flag_pulse = y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                            flag_pulse = (
+                                y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                                * weight_pulse_flag
+                            )
                             current_vel_with_pulse = torch.cat(
                                 (current_vel, flag_pulse), dim=1
                             )

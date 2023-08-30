@@ -605,7 +605,6 @@ if __name__ == "__main__":
 
     featurelen = X_train_all[0][0].shape[1]
     len_seqs_tr = len(ind_train)
-    # print(len_seqs_tr)
     offSet_tr = math.floor(len_seqs_tr / batchSize)
     batchSize_val = len(ind_val)
 
@@ -1010,19 +1009,19 @@ if __name__ == "__main__":
             GeneralDataset(args, len_seqs_tr, train=1, normalize_data=args.normalize),
             batch_size=batchSize,
             shuffle=False,
-            **kwargs
+            **kwargs,
         )
         val_loader = DataLoader(
             GeneralDataset(args, len_seqs_val, train=0, normalize_data=args.normalize),
             batch_size=batchSize_val,
             shuffle=False,
-            **kwargs2
+            **kwargs2,
         )
     test_loader = DataLoader(
         GeneralDataset(args, len_seqs_test, train=-1, normalize_data=args.normalize),
         batch_size=batchSize_test,
         shuffle=False,
-        **kwargs2
+        **kwargs2,
     )
     print(
         "batch train: "
@@ -1484,6 +1483,7 @@ if __name__ == "__main__":
                 open(experiment_path + "/samples.p", "wb"),
                 protocol=4,
             )
+            print(f"save sample.p:{experiment_path}")
 
     if "MACRO" in args.model and not args.wo_macro:
         # Sample trajectory

@@ -97,6 +97,8 @@ game_dir = main_dir + "data_" + args.data + "/"
 Data = LoadData(main_dir, game_dir, args.data)
 path_init = "./weights/"  # './weights_vrnn/init/'
 
+pulse_loss_weight = 500.0
+
 
 def run_epoch(train, rollout, hp):
     loader = train_loader if train == 1 else val_loader if train == 0 else test_loader
@@ -124,7 +126,10 @@ def run_epoch(train, rollout, hp):
             else:
                 batch_losses, batch_losses2 = model(data, rollout, train, hp=hp)
             optimizer.zero_grad()
-            total_loss = sum(batch_losses.values())
+            # total_loss = sum(batch_losses.values())
+            total_loss = (
+                batch_losses["L_rec"] + batch_losses["pulse_flag"] * pulse_loss_weight
+            )
             total_loss.backward()
             if hp["model"] != "RNN_ATTENTION":
                 nn.utils.clip_grad_norm_(model.parameters(), clip)

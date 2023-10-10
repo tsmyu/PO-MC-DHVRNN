@@ -50,7 +50,10 @@ class MACRO_VRNN(nn.Module):
         ball_dim = params['ball_dim']
         self.L_acc = self.params['body'] # constraints
         self.jrk = self.params['jrk'] if self.L_acc else 0 # constraints
-        self.init_pthname0 = self.params['init_pthname0'] 
+        self.init_pthname0 = self.params['init_pthname0']
+
+        # dataset
+        self.dataset = params["dataset"]
 
         dropout = 0.5 # 
         self.xavier = True # initial value
@@ -103,7 +106,8 @@ class MACRO_VRNN(nn.Module):
                     nn.ReLU(),
                     nn.Dropout(dropout),
                     nn.Linear(h_dim, m_dim),
-                    nn.LogSoftmax(dim=-1)) for i in range(n_agents)])        
+                    nn.LogSoftmax(dim=-1)) for i in range(n_agents)])
+
         #if params['pretrain'] == 0:
         #    self.dec_macro.apply(self.pretrain_load)
 
@@ -212,12 +216,16 @@ class MACRO_VRNN(nn.Module):
             nn.Linear(h_dim, h_dim),
             nn.ReLU(),
             nn.Dropout(dropout)) for i in range(n_agents)])
-        self.dec_mean = nn.ModuleList([nn.Linear(h_dim, rnn_in_x) for i in range(n_agents)])
+        self.dec_mean = nn.ModuleList([nn.Linear(h_dim, rnn_in_x-1) for i in range(n_agents)])
+        
 
         #if not self.fixedsigma:
         self.dec_std = nn.ModuleList([nn.Sequential(
-            nn.Linear(h_dim, rnn_in_x),
-            nn.Softplus()) for i in range(n_agents)])       
+            nn.Linear(h_dim, rnn_in_x-1),
+            nn.Softplus()) for i in range(n_agents)])
+        self.dec_pulse = nn.ModuleList([nn.Sequential(
+            nn.Linear(h_dim, 1),
+            nn.Sigmoid()) for i in range(n_agents)])     
 
         self.gru_micro = nn.ModuleList([nn.GRU(rnn_in_x+z_dim, rnn_micro_dim, n_layers) for i in range(n_agents)])
         if self.macro:
@@ -350,16 +358,17 @@ class MACRO_VRNN(nn.Module):
         out2 = {}
         if hp['pretrain']:
             out['L_mac'] = torch.zeros(1).to(device)
-            out2['dummy'] = torch.zeros(1)
+            out2['dummy'] = torch.zeros(1).to(device)
         else:
             out['L_kl'] = torch.zeros(1).to(device)
             out['L_rec'] = torch.zeros(1).to(device)
-            out2['e_pos'] = torch.zeros(1)
-            out2['e_vel'] = torch.zeros(1)
-            out2['e_acc'] = torch.zeros(1)  
-            out2['e_jrk'] = torch.zeros(1)  
+            out['pulse_flag'] = torch.zeros(1).to(device)
+            out2['e_pos'] = torch.zeros(1).to(device)
+            out2['e_vel'] = torch.zeros(1).to(device)
+            out2['e_acc'] = torch.zeros(1).to(device)
+            out2['e_jrk'] = torch.zeros(1).to(device) 
             if self.macro:
-                out2['e_mac'] = torch.zeros(1)
+                out2['e_mac'] = torch.zeros(1).to(device)
             if self.attention == 3:
                 out2['att'] = torch.zeros(1).to(device) 
             if self.L_acc:
@@ -413,12 +422,34 @@ class MACRO_VRNN(nn.Module):
                             out2['e_mac'] -= torch.sum(m_t[i]*dec_macro_t)
 
             if not hp['pretrain']:
-                prediction_all = torch.zeros(batchSize, n_agents, x_dim)
+                prediction_all = torch.zeros(batchSize, n_agents, x_dim-1)
                 for i in range(n_agents):
                     y_t = states[t][i].clone()                      
 
                     if self.in_out:
                         x_t0 = states[t+1][i].clone() # pos, vel, acc
+                    elif self.dataset == "bat":
+                        if self.in_sma:  # 2dim
+                            x_t0 = states[t + 1][i][
+                                :, n_feat * i + 2 : n_feat * i + 4
+                            ].clone()
+                            next_pulse = (
+                                states[t + 1][i][:, n_feat * i + 5].clone().reshape(-1, 1)
+                            )
+                            x_t0_with_pulse = torch.cat((x_t0, next_pulse), dim=1)
+
+                            # x_t0 = list(
+                            #     itemgetter(
+                            #         n_feat * i + 2,
+                            #         n_feat * i + 3,
+                            #         n_feat * i + 5,
+                            #     )(states[t + 1][i])
+                            # ).clone()
+
+                        else:  # 3dim
+                            x_t0 = states[t + 1][i][
+                                :, n_feat * i + 3 : n_feat * i + 6
+                            ].clone()
                     elif self.in_sma:
                         x_t0 = states[t+1][i][:,n_feat*i:n_feat*i+n_feat].clone() 
                     elif n_feat == 13:
@@ -427,7 +458,9 @@ class MACRO_VRNN(nn.Module):
                         x_t0 = states[t+1][i][:,n_feat*i+3:n_feat*i+x_dim+7].clone() # pos, vel, acc
 
                     # action
-                    if acc == 0: 
+                    if self.dataset == "bat":
+                        x_t = x_t0[:, :]  # vel
+                    elif acc == 0: 
                         x_t = x_t0[:,2:4] # vel 
                     elif acc == 1: 
                         x_t = x_t0[:,0:4] # pos,vel 
@@ -440,7 +473,28 @@ class MACRO_VRNN(nn.Module):
                     elif acc == -1:
                         x_t = x_t0[:,:2] # pos
 
-                    if self.in_sma:
+                    if self.dataset == "bat":
+                        if self.in_sma:  # 2dim
+                            current_pos = y_t[:, n_feat * i : n_feat * i + 2]
+                            current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
+                            flag_pulse = y_t[:, n_feat * i + 5].clone()
+                            current_vel_with_pulse = torch.cat(
+                                (current_vel, flag_pulse.reshape(-1, 1)), dim=1
+                            )
+                            v0_t1 = x_t0
+                            v0_t2 = states[t + 2][i][
+                                :, n_feat * i + 2 : n_feat * i + 4
+                            ].clone()
+                            a0_t1 = (v0_t2 - v0_t1) / fs
+                        else:  # 3dim
+                            current_pos = y_t[:, n_feat * i : n_feat * i + 3]
+                            current_vel = y_t[:, n_feat * i + 3 : n_feat * i + 6]
+                            v0_t1 = x_t0
+                            v0_t2 = states[t + 2][i][
+                                :, n_feat * i + 3 : n_feat * i + 6
+                            ].clone()
+                            a0_t1 = (v0_t2 - v0_t1) / fs
+                    elif self.in_sma:
                         current_pos = y_t[:,n_feat*i:n_feat*i+2]
                         p0_t2 = states[t+2][i][:,n_feat*i:n_feat*i+2].clone()
                         if acc >= 0:
@@ -475,7 +529,13 @@ class MACRO_VRNN(nn.Module):
                         v0_t2 = states[t+2][i][:,n_feat*i+5:n_feat*i+7].clone()  
                     
                     if self.in_state0:
-                        if acc == 3:
+                        if self.dataset == "bat":
+                            state_in0 = current_vel_with_pulse  ### velocity + pulse timing
+                        elif acc == 3:
+                            state_in0 = torch.cat(
+                                [current_pos, current_vel, current_acc], 1
+                            )
+                        elif acc == 3:
                             state_in0 = torch.cat([current_pos,current_vel,current_acc], 1)
                         elif acc == 4:
                             state_in0 = current_acc
@@ -510,7 +570,7 @@ class MACRO_VRNN(nn.Module):
                     #    state_in = torch.zeros(batchSize,0).to(device)
 
                     prior_in = torch.cat([state_in0, state_in, m_t[i], h_micro[i][-1]], 1)
-                    enc_in = torch.cat([x_t, prior_in], 1)
+                    enc_in = torch.cat([x_t0_with_pulse, prior_in], 1)
                     enc_t = self.enc[i](enc_in)
 
                     if self.batchnorm:
@@ -540,16 +600,23 @@ class MACRO_VRNN(nn.Module):
                     if not self.fixedsigma:
                         dec_std_t = self.dec_std[i](dec_t)
                     else:
-                        dec_std_t = self.fixedsigma**2*torch.ones(dec_mean_t.shape).to(device)  
+                        dec_std_t = self.fixedsigma**2*torch.ones(dec_mean_t.shape).to(device)
+                    
+                    dec_pulse_t = self.dec_pulse[i](dec_t)
 
-                    _, h_micro[i] = self.gru_micro[i](torch.cat([x_t, z_t], 1).unsqueeze(0), h_micro[i])
+                    _, h_micro[i] = self.gru_micro[i](torch.cat([x_t0_with_pulse, z_t], 1).unsqueeze(0), h_micro[i])
 
                     # objective function
+                    pulse_loss = nn.BCELoss()
                     out['L_kl'] += kld_gauss(enc_mean_t, enc_std_t, prior_mean_t, prior_std_t)
                     if acc == -1: 
                         out['L_rec'] += nll_gauss(dec_mean_t[:,:2], dec_std_t[:,:2], torch.cat([x_t],1))
+                        out["pulse_flag"] += pulse_loss(dec_pulse_t, next_pulse)
                     else:
                         out['L_rec'] += nll_gauss(dec_mean_t, dec_std_t, x_t)
+                        out["pulse_flag"] += pulse_loss(
+                        dec_pulse_t.reshape(1, -1)[0], next_pulse.reshape(1, -1)[0]
+                        )
                         if self.L_acc:
                             if acc == 3: 
                                 out['L_rec'] += self.gamma2*nll_gauss(dec_mean_t[:,2:6], dec_std_t[:,2:6], x_t[:,2:6])
@@ -561,8 +628,11 @@ class MACRO_VRNN(nn.Module):
                     del enc_t, prior_t, dec_t, z_t
 
                     # body constraint
-                    # acc                    
-                    if acc == 1 or acc == 3:
+                    # acc
+                    if self.dataset == "bat":
+                        v_t1 = dec_mean_t[:, :2]
+                        next_pos = current_pos + v_t1 * fs               
+                    elif acc == 1 or acc == 3:
                         v_t1 = dec_mean_t[:,2:4]
                         next_pos = dec_mean_t[:,:2]
                     elif acc == 4:
@@ -575,7 +645,9 @@ class MACRO_VRNN(nn.Module):
                         next_pos = dec_mean_t[:,:2]
                         v_t1 = (p0_t2 - next_pos)/fs
                     
-                    if acc == 2:
+                    if self.dataset == "bat":
+                        a_t1 = (v0_t2 - v_t1) / fs
+                    elif acc == 2:
                         a_t1 = dec_mean_t[:,2:4]
                     elif acc == 3:
                         a_t1 = dec_mean_t[:,4:6]
@@ -602,8 +674,19 @@ class MACRO_VRNN(nn.Module):
                             out['L_vel'] += self.beta*batch_error(v_t1, v0_t1)
                             out['L_acc'] += self.gamma1*batch_error(a0_t1, a_t1) # GT and indirect
 
-                    # jerk 
-                    if n_feat == 15: 
+                    # jerk
+                    if self.dataset == "bat":
+                        if self.in_sma:  # 2dim
+                            v0_t3 = states[t + 3][i][
+                                :, n_feat * i + 2 : n_feat * i + 4
+                            ].clone()
+                            a_t2 = (v0_t3 - v0_t2) / fs
+                        else:
+                            v0_t3 = states[t + 3][i][
+                                :, n_feat * i + 3 : n_feat * i + 6
+                            ].clone()
+                            a_t2 = (v0_t3 - v0_t2) / fs
+                    elif n_feat == 15: 
                         a_t2 = states[t+2][i][:,n_feat*i+7:n_feat*i+9].clone() 
                     elif n_feat == 6:
                         a_t2 = states[t+2][i][:,n_feat*i+4:n_feat*i+6].clone() 
@@ -628,7 +711,7 @@ class MACRO_VRNN(nn.Module):
                     # evaluation (not learned)
                     if t >= burn_in or burn_in==len_time:
                         # prediction
-                        prediction_all[:,i,:] = dec_mean_t[:,:x_dim]    
+                        prediction_all[:,i,:] = dec_mean_t[:,:x_dim-1]    
  
                         # error (not used when backward)
                         out2['e_pos'] += batch_error(next_pos, x_t0[:,:2])
@@ -694,6 +777,7 @@ class MACRO_VRNN(nn.Module):
         out2['L_kl'] = torch.zeros(n_sample).to(device) if not TEST else torch.zeros(n_sample,batchSize).to(device)
         out['L_rec'] = torch.zeros(n_sample).to(device) if not TEST else torch.zeros(n_sample,batchSize).to(device)
         out['e_pos'] = torch.zeros(n_sample).to(device) if not TEST else torch.zeros(n_sample,batchSize).to(device)
+        out['pulse_flag'] = torch.zeros(n_sample).to(device) if not TEST else torch.zeros(n_sample,batchSize).to(device)
         out2['e_vel'] = torch.zeros(n_sample).to(device) if not TEST else torch.zeros(n_sample,batchSize).to(device)
         out2['e_acc'] = torch.zeros(n_sample).to(device) if not TEST else torch.zeros(n_sample,batchSize).to(device)  
         out2['e_jrk'] = torch.zeros(n_sample).to(device) if not TEST else torch.zeros(n_sample,batchSize).to(device)  
@@ -760,6 +844,7 @@ class MACRO_VRNN(nn.Module):
                 self.dec[i] = self.dec[i].to(device)
                 self.dec_std[i] = self.dec_std[i].to(device) 
                 self.dec_mean[i] = self.dec_mean[i].to(device)
+                self.dec_pulse[i] = self.dec_pulse[i].to(device)
 
                 if self.batchnorm:
                     self.bn_enc[i] = self.bn_enc[i].to(device) 
@@ -794,6 +879,20 @@ class MACRO_VRNN(nn.Module):
 
                     if self.in_out:
                         x_t0 = states[t+1][i].clone() # pos, vel, acc
+                    elif self.dataset == "bat":
+                        if self.in_sma:  # 2dim
+                            x_t0 = states[t + 1][i][
+                                :, n_feat * i + 2 : n_feat * i + 4
+                            ].clone()
+                            next_pulse = states[t + 1][i][:, n_feat * i + 5].clone()
+                            x_t0_with_pulse = torch.cat(
+                                (x_t0, next_pulse.reshape(-1, 1)), dim=1
+                            )
+                        else:  # 3dim
+                            x_t0 = states[t + 1][i][
+                                :, n_feat * i + 3 : n_feat * i + 6
+                            ].clone()
+                            next_pulse = states[t + 1][i][:, n_feat * i + 8].clone()
                     elif n_feat < 10:
                         x_t0 = states[t+1][i][:,n_feat*i:n_feat*i+n_feat].clone() 
                     elif n_feat == 13:
@@ -802,7 +901,9 @@ class MACRO_VRNN(nn.Module):
                         x_t0 = states[t+1][i][:,n_feat*i+3:n_feat*i+x_dim+7].clone() # pos, vel, acc
 
                     # action
-                    if acc == 0: 
+                    if self.dataset == "bat":
+                        x_t = x_t0[:, :]  # vel 3dim
+                    elif acc == 0: 
                         x_t = x_t0[:,2:4] # vel 
                     elif acc == 1: 
                         x_t = x_t0[:,0:4] # pos,vel 
@@ -816,7 +917,28 @@ class MACRO_VRNN(nn.Module):
                         x_t = x_t0[:,:2] # pos
 
                     # for evaluation
-                    if self.in_sma:
+                    if self.dataset == "bat":
+                        if self.in_sma:  # 2dim
+                            current_pos = y_t[:, n_feat * i : n_feat * i + 2]
+                            current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
+                            flag_pulse = y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                            current_vel_with_pulse = torch.cat(
+                                (current_vel, flag_pulse), dim=1
+                            )
+                            v0_t1 = x_t0
+                            v0_t2 = states[t + 2][i][
+                                :, n_feat * i + 2 : n_feat * i + 4
+                            ].clone()
+                            a0_t1 = (v0_t2 - v0_t1) / fs
+                        else:  # 3dim
+                            current_pos = y_t[:, n_feat * i : n_feat * i + 3]
+                            current_vel = y_t[:, n_feat * i + 3 : n_feat * i + 6]
+                            v0_t1 = x_t0
+                            v0_t2 = states[t + 2][i][
+                                :, n_feat * i + 3 : n_feat * i + 6
+                            ].clone()
+                            a0_t1 = (v0_t2 - v0_t1) / fs
+                    elif self.in_sma:
                         current_pos = y_t[:,n_feat*i:n_feat*i+2]
                         p0_t2 = states[t+2][i][:,n_feat*i:n_feat*i+2].clone()
                         if acc >= 0:
@@ -849,7 +971,13 @@ class MACRO_VRNN(nn.Module):
                         v0_t2 = states[t+2][i][:,n_feat*i+5:n_feat*i+7].clone()  
                     
                     if self.in_state0:
-                        if acc == 3:
+                        if self.dataset == "bat":
+                            state_in0 = current_vel_with_pulse
+                        elif acc == 3:
+                            state_in0 = torch.cat(
+                                [current_pos, current_vel, current_acc], 1
+                            )
+                        elif acc == 3:
                             state_in0 = torch.cat([current_pos,current_vel,current_acc], 1)
                         elif acc == 4:
                             state_in0 = current_acc
@@ -894,7 +1022,7 @@ class MACRO_VRNN(nn.Module):
                     if False: # acc == -1: #  and self.body_pretrain:
                         enc_in = torch.cat([x_t,v0_t1,a0_t1, prior_in],1)
                     else:
-                        enc_in = torch.cat([x_t, prior_in], 1)
+                        enc_in = torch.cat([x_t0_with_pulse, prior_in], 1)
 
                     prior_t = self.prior[i](prior_in)
                     if self.batchnorm:
@@ -917,8 +1045,10 @@ class MACRO_VRNN(nn.Module):
                     if not self.fixedsigma:       
                         dec_std_t = self.dec_std[i](dec_t)
                     else:
-                        dec_std_t = self.fixedsigma**2*torch.ones(dec_mean_t.shape).to(device)  
+                        dec_std_t = self.fixedsigma**2*torch.ones(dec_mean_t.shape).to(device)
+                    dec_pulse_t = self.dec_pulse[i](dec_t)
                     # objective function
+                    pulse_loss = nn.BCELoss()
                     # for evaluation only
                     enc_t = self.enc[i](enc_in)
                     if self.batchnorm:
@@ -930,10 +1060,15 @@ class MACRO_VRNN(nn.Module):
                         out['L_rec'][n] += nll_gauss(dec_mean_t[:,:2], dec_std_t[:,:2], torch.cat([x_t],1))
                     else:                   
                         out['L_rec'][n] += nll_gauss(dec_mean_t, dec_std_t, x_t, Sum)
-
+                    out["pulse_flag"] += pulse_loss(
+                        dec_pulse_t.reshape(1, -1)[0], next_pulse.reshape(1, -1)[0]
+                    )
                     # body constraint
-                    # acc 
-                    if acc == 1 or acc == 3:
+                    # acc
+                    if self.dataset == "bat":
+                        v_t1 = dec_mean_t[:, :2]
+                        next_pos = current_pos + v_t1 * fs
+                    elif acc == 1 or acc == 3:
                         v_t1 = dec_mean_t[:,2:4]
                         next_pos = dec_mean_t[:,:2]
                     elif acc == 4:
@@ -946,7 +1081,9 @@ class MACRO_VRNN(nn.Module):
                         next_pos = dec_mean_t[:,:2]
                         v_t1 = (p0_t2 - next_pos)/fs
 
-                    if acc == 2:
+                    if self.dataset == "bat":
+                        a_t1 = (v0_t2 - v_t1) / fs
+                    elif acc == 2:
                         a_t1 = dec_mean_t[:,2:4]
                     elif acc == 3:
                         a_t1 = dec_mean_t[:,4:6]
@@ -974,7 +1111,18 @@ class MACRO_VRNN(nn.Module):
                         out2['L_vel'][n] += batch_error(v_t1, v0_t1, Sum) # vel
                         out2['L_acc'][n] += batch_error(a0_t1, a_t1, Sum)
                     # jerk
-                    if n_feat == 15: 
+                    if self.dataset == "bat":
+                        if self.in_sma:  # 2dim
+                            v0_t3 = states[t + 3][i][
+                                :, n_feat * i + 2 : n_feat * i + 4
+                            ].clone()
+                            a_t2 = (v0_t3 - v0_t2) / fs
+                        else:
+                            v0_t3 = states[t + 3][i][
+                                :, n_feat * i + 3 : n_feat * i + 6
+                            ].clone()
+                            a_t2 = (v0_t3 - v0_t2) / fs
+                    elif n_feat == 15: 
                         a_t2 = states[t+2][i][:,n_feat*i+7:n_feat*i+9].clone() 
                     elif n_feat == 6:
                         a_t2 = states[t+2][i][:,n_feat*i+4:n_feat*i+6].clone() 
@@ -996,7 +1144,8 @@ class MACRO_VRNN(nn.Module):
 
                     if t >= burn_in or burn_in==len_time: # and not CF_pred:
                         # prediction
-                        prediction_all[:,i,:] = dec_mean_t[:,:x_dim]
+                        prediction_all[:,i,:2] = dec_mean_t[:,:x_dim-1]
+                        prediction_all[:, i, 2] = dec_pulse_t.reshape(1, -1)[0]
 
                         # error (not used when backward)
                         out['e_pos'][n] += batch_error(next_pos, x_t0[:,:2], Sum)
@@ -1029,7 +1178,7 @@ class MACRO_VRNN(nn.Module):
 
                     if acc >= 0:
                         del current_vel, v0_t2, a_t2, a_t1
-                    _, h_micro[i][n] = self.gru_micro[i](torch.cat([x_t, z_t], 1).unsqueeze(0), h_micro[i][n])
+                    _, h_micro[i][n] = self.gru_micro[i](torch.cat([x_t0_with_pulse, z_t], 1).unsqueeze(0), h_micro[i][n])
                     del x_t, z_t
 
                 if self.macro and self.indep:    
@@ -1046,6 +1195,7 @@ class MACRO_VRNN(nn.Module):
             macro_intents.data[-1] = macro_intents.data[-2] # the last time step
         if burn_in==len_time:
             out['e_pos'] /= (len_time)*n_agents
+            out["pulse_flag"][n] /= (len_time) * n_agents
             out2['e_vel'] /= (len_time)*n_agents
             out2['e_acc'] /= (len_time)*n_agents
             out2['e_jrk'] /= (len_time)*n_agents   
@@ -1082,7 +1232,7 @@ class MACRO_VRNN(nn.Module):
 
         if n_sample > 1:
             states = states_n
-        return states, macro_intents, hard_att, out, out2
+        return states, macro_intents, hard_att, out, out2, y_t
 
     def CF_oneHot(self,y_t,hard_att,n_feat,n_all_agents,batchSize,i):
         # set attention to the farthest agent to zero

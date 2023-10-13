@@ -609,14 +609,13 @@ class MACRO_VRNN(nn.Module):
                     # objective function
                     pulse_loss = nn.BCELoss()
                     out['L_kl'] += kld_gauss(enc_mean_t, enc_std_t, prior_mean_t, prior_std_t)
+                    
                     if acc == -1: 
+                        out['L_rec'] += nll_gauss(dec_mean_t[:,:2], dec_std_t[:,:2], torch.cat([x_t],1))
+                    elif acc == 0 and self.dataset == "bat":
                         out['L_rec'] += nll_gauss(dec_mean_t[:,:2], dec_std_t[:,:2], torch.cat([x_t],1))
                         out["pulse_flag"] += pulse_loss(dec_pulse_t, next_pulse)
                     else:
-                        out['L_rec'] += nll_gauss(dec_mean_t, dec_std_t, x_t)
-                        out["pulse_flag"] += pulse_loss(
-                        dec_pulse_t.reshape(1, -1)[0], next_pulse.reshape(1, -1)[0]
-                        )
                         if self.L_acc:
                             if acc == 3: 
                                 out['L_rec'] += self.gamma2*nll_gauss(dec_mean_t[:,2:6], dec_std_t[:,2:6], x_t[:,2:6])

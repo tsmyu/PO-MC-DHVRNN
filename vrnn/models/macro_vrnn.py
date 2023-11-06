@@ -223,9 +223,11 @@ class MACRO_VRNN(nn.Module):
         self.dec_std = nn.ModuleList([nn.Sequential(
             nn.Linear(h_dim, rnn_in_x-1),
             nn.Softplus()) for i in range(n_agents)])
+        # self.dec_pulse = nn.ModuleList([nn.Sequential(
+        #     nn.Linear(h_dim, 1),
+        #     nn.Sigmoid()) for i in range(n_agents)])
         self.dec_pulse = nn.ModuleList([nn.Sequential(
-            nn.Linear(h_dim, 1),
-            nn.Sigmoid()) for i in range(n_agents)])     
+            nn.Linear(h_dim, 1)) for i in range(n_agents)])    
 
         self.gru_micro = nn.ModuleList([nn.GRU(rnn_in_x+z_dim, rnn_micro_dim, n_layers) for i in range(n_agents)])
         if self.macro:
@@ -607,7 +609,8 @@ class MACRO_VRNN(nn.Module):
                     _, h_micro[i] = self.gru_micro[i](torch.cat([x_t0_with_pulse, z_t], 1).unsqueeze(0), h_micro[i])
 
                     # objective function
-                    pulse_loss = nn.BCELoss()
+                    # pulse_loss = nn.BCELoss()
+                    pulse_loss = nn.MSELoss()
                     out['L_kl'] += kld_gauss(enc_mean_t, enc_std_t, prior_mean_t, prior_std_t)
                     
                     if acc == -1: 
@@ -765,6 +768,7 @@ class MACRO_VRNN(nn.Module):
                 out['L_acc'] /= (len_time)*n_agents
             if self.attention == 3:
                 out2['att'] /= (len_time)*n_agents
+        
         return out, out2
 
     def sample(self, states, macro, rollout, burn_in=0, fix_m=[], L_att = False, CF_pred=False, n_sample=1, TEST=False):
@@ -1047,7 +1051,8 @@ class MACRO_VRNN(nn.Module):
                         dec_std_t = self.fixedsigma**2*torch.ones(dec_mean_t.shape).to(device)
                     dec_pulse_t = self.dec_pulse[i](dec_t)
                     # objective function
-                    pulse_loss = nn.BCELoss()
+                    # pulse_loss = nn.BCELoss()
+                    pulse_loss = nn.MSELoss()
                     # for evaluation only
                     enc_t = self.enc[i](enc_in)
                     if self.batchnorm:
@@ -1231,6 +1236,7 @@ class MACRO_VRNN(nn.Module):
 
         if n_sample > 1:
             states = states_n
+        
         return states, macro_intents, hard_att, out, out2, y_t
 
     def CF_oneHot(self,y_t,hard_att,n_feat,n_all_agents,batchSize,i):

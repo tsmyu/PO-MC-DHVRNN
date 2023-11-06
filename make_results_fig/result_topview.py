@@ -10,7 +10,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 
 with open(
-    "./weights/sub100_filt_vel_meanHMM_inSimple_acc_0_unnorm/MACRO_VRNN_bat/att_-1_10_796_wo_macro/params.p",
+    "./weights/sub100_filt_vel_meanHMM_inSimple_acc_0_unnorm/MACRO_VRNN_bat/att_-1_100_796_wo_macro/params.p",
     "rb",
 ) as f:
     param = np.load(f, allow_pickle=True)
@@ -18,7 +18,7 @@ with open(
     predict_time = param["burn_in"]
 
 with open(
-    "./weights/sub100_filt_vel_meanHMM_inSimple_acc_0_unnorm/MACRO_VRNN_bat/att_-1_10_796_wo_macro/experiments/sample/samples.p",
+    "./weights/sub100_filt_vel_meanHMM_inSimple_acc_0_unnorm/MACRO_VRNN_bat/att_-1_100_796_wo_macro/experiments/sample/samples.p",
     "rb",
 ) as f:
     data = np.load(f, allow_pickle=True)

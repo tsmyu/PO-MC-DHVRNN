@@ -126,10 +126,10 @@ def run_epoch(train, rollout, hp):
             else:
                 batch_losses, batch_losses2 = model(data, rollout, train, hp=hp)
             optimizer.zero_grad()
-            # total_loss = sum(batch_losses.values())
-            total_loss = (
-                batch_losses["L_rec"] + batch_losses["pulse_flag"] * pulse_loss_weight
-            )
+            total_loss = sum(batch_losses.values())
+            # total_loss = (
+            #     batch_losses["L_rec"] + batch_losses["pulse_flag"] * pulse_loss_weight
+            # )
             total_loss.backward()
             if hp["model"] != "RNN_ATTENTION":
                 nn.utils.clip_grad_norm_(model.parameters(), clip)
@@ -821,7 +821,7 @@ if __name__ == "__main__":
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
-    args.burn_in = int(totalTimeSteps / 3 * 2)  # 予測に使う長さ
+    args.burn_in = int(totalTimeSteps*2 / 3)  # 予測に使う長さ
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
     if args.data == "soccer":

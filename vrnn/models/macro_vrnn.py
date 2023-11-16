@@ -42,9 +42,7 @@ class MACRO_VRNN(nn.Module):
             "n_agents",
         ]
         self.params = params
-        self.params_str = get_params_str(
-            self.model_args, params
-        )
+        self.params_str = get_params_str(self.model_args, params)
         self.attention = params["attention"]
         self.wo_macro = params["wo_macro"]
         self.macro = not self.wo_macro
@@ -59,9 +57,7 @@ class MACRO_VRNN(nn.Module):
         y_dim = params["y_dim"]
         z_dim = params["z_dim"]
         h_dim = params["h_dim"]
-        m_dim = (
-            params["m_dim"] if self.macro else 0
-        )
+        m_dim = params["m_dim"] if self.macro else 0
         rnn_micro_dim = params["rnn_micro_dim"]
         rnn_macro_dim = params["rnn_macro_dim"]
         rnn_att_dim = params["rnn_att_dim"]
@@ -71,29 +67,17 @@ class MACRO_VRNN(nn.Module):
         # embedding
         embed_size = params["embed_size"]
         self.embed_size = embed_size
-        embed_ball_size = params[
-            "embed_ball_size"
-        ]
+        embed_ball_size = params["embed_ball_size"]
         self.embed_ball_size = embed_ball_size
 
         # parameters
-        n_all_agents = params[
-            "n_all_agents"
-        ]  # all players
+        n_all_agents = params["n_all_agents"]  # all players
         n_agents = params["n_agents"]
         n_feat = params["n_feat"]  # dim
         ball_dim = params["ball_dim"]
-        self.L_acc = self.params[
-            "body"
-        ]  # constraints
-        self.jrk = (
-            self.params["jrk"]
-            if self.L_acc
-            else 0
-        )  # constraints
-        self.init_pthname0 = self.params[
-            "init_pthname0"
-        ]
+        self.L_acc = self.params["body"]  # constraints
+        self.jrk = self.params["jrk"] if self.L_acc else 0  # constraints
+        self.init_pthname0 = self.params["init_pthname0"]
 
         # dataset
         self.dataset = params["dataset"]
@@ -102,16 +86,8 @@ class MACRO_VRNN(nn.Module):
         self.xavier = True  # initial value
         self.res = params["res"]  # like resnet
 
-        self.beta = (
-            0.01
-            if params["dataset"] == "nba"
-            else 0.01
-        )
-        self.gamma1 = (
-            0.1
-            if params["dataset"] == "nba"
-            else 0.01
-        )
+        self.beta = 0.01 if params["dataset"] == "nba" else 0.01
+        self.gamma1 = 0.1 if params["dataset"] == "nba" else 0.01
         self.gamma2 = self.params["lam_acc"]
         self.batchnorm = True
         self.fixedsigma = False
@@ -132,14 +108,10 @@ class MACRO_VRNN(nn.Module):
             + ", fixedsigma = "
             + str(self.fixedsigma)
         )
-        self.in_state0 = (
-            True  # raw current state input
-        )
+        self.in_state0 = True  # raw current state input
 
         # currently not considerd
-        if (
-            params["acc"] == -1
-        ):  # and self.params['body']: # body_pretrain:
+        if params["acc"] == -1:  # and self.params['body']: # body_pretrain:
             x_dim = 2
         self.gru_att = False  # for attention RNN (currently not considered)
         self.body_pretrain = (
@@ -152,10 +124,7 @@ class MACRO_VRNN(nn.Module):
         else:
             in_state0 = 0
         rnn_in_x = x_dim
-        in_state = (
-            embed_size * n_all_agents
-            + embed_ball_size
-        )
+        in_state = embed_size * n_all_agents + embed_ball_size
 
         # macro intents decoder
         if self.indep:  # w/ attention
@@ -163,8 +132,7 @@ class MACRO_VRNN(nn.Module):
                 [
                     nn.Sequential(
                         nn.Linear(
-                            in_state
-                            + rnn_macro_dim,
+                            in_state + rnn_macro_dim,
                             h_dim,
                         ),  # y_dim
                         nn.ReLU(),
@@ -181,17 +149,13 @@ class MACRO_VRNN(nn.Module):
                     [
                         nn.Sequential(
                             nn.Linear(
-                                n_all_agents * 2
-                                + 2
-                                + rnn_macro_dim,
+                                n_all_agents * 2 + 2 + rnn_macro_dim,
                                 h_dim,
                             ),  # y_dim
                             nn.ReLU(),
                             nn.Dropout(dropout),
                             nn.BatchNorm1d(h_dim),
-                            nn.Linear(
-                                h_dim, m_dim
-                            ),
+                            nn.Linear(h_dim, m_dim),
                             nn.LogSoftmax(dim=-1),
                         )
                         for i in range(n_agents)
@@ -202,16 +166,12 @@ class MACRO_VRNN(nn.Module):
                     [
                         nn.Sequential(
                             nn.Linear(
-                                n_all_agents * 2
-                                + 2
-                                + rnn_macro_dim,
+                                n_all_agents * 2 + 2 + rnn_macro_dim,
                                 h_dim,
                             ),  # y_dim
                             nn.ReLU(),
                             nn.Dropout(dropout),
-                            nn.Linear(
-                                h_dim, m_dim
-                            ),
+                            nn.Linear(h_dim, m_dim),
                             nn.LogSoftmax(dim=-1),
                         )
                         for i in range(n_agents)
@@ -234,17 +194,9 @@ class MACRO_VRNN(nn.Module):
             feat_in = 4
 
         # individual embedding
-        self.enc_ind = nn.ModuleList(
-            [
-                nn.ModuleList()
-                for i in range(n_agents)
-            ]
-        )
+        self.enc_ind = nn.ModuleList([nn.ModuleList() for i in range(n_agents)])
         self.enc_ind2 = nn.ModuleList(
-            [
-                nn.ModuleList()
-                for i in range(n_agents)
-            ]
+            [nn.ModuleList() for i in range(n_agents)]
         )
         self.dim_ind_embed = (
             1 if self.attention == 2 else 2
@@ -252,18 +204,8 @@ class MACRO_VRNN(nn.Module):
 
         # batch normalization
         if self.batchnorm:
-            self.bn1 = nn.ModuleList(
-                [
-                    nn.ModuleList()
-                    for i in range(n_agents)
-                ]
-            )
-            self.bn2 = nn.ModuleList(
-                [
-                    nn.ModuleList()
-                    for i in range(n_agents)
-                ]
-            )
+            self.bn1 = nn.ModuleList([nn.ModuleList() for i in range(n_agents)])
+            self.bn2 = nn.ModuleList([nn.ModuleList() for i in range(n_agents)])
 
         for i in range(n_agents):
             if self.attention >= 2:  # individual
@@ -277,31 +219,21 @@ class MACRO_VRNN(nn.Module):
                             ),
                             nn.Softplus(),
                         )
-                        for ii in range(
-                            n_all_agents
-                        )
+                        for ii in range(n_all_agents)
                     ]
                 )
 
                 if self.batchnorm:
                     self.bn1[i] = nn.ModuleList(
                         [
-                            nn.BatchNorm1d(
-                                embed_size
-                            )
-                            for ii in range(
-                                n_all_agents
-                            )
+                            nn.BatchNorm1d(embed_size)
+                            for ii in range(n_all_agents)
                         ]
                     )
                     self.bn2[i] = nn.ModuleList(
                         [
-                            nn.BatchNorm1d(
-                                self.dim_ind_embed
-                            )
-                            for ii in range(
-                                n_all_agents
-                            )
+                            nn.BatchNorm1d(self.dim_ind_embed)
+                            for ii in range(n_all_agents)
                         ]
                     )
 
@@ -314,19 +246,13 @@ class MACRO_VRNN(nn.Module):
                             ),
                             nn.Softplus(),
                         )
-                        for ii in range(
-                            n_all_agents
-                        )
+                        for ii in range(n_all_agents)
                     ]
                 )  # nn.Sigmoid()
 
                 for ii in range(n_all_agents):
-                    self.enc_ind[i][ii].apply(
-                        self.weights_init
-                    )
-                    self.enc_ind2[i][ii].apply(
-                        self.weights_init
-                    )
+                    self.enc_ind[i][ii].apply(self.weights_init)
+                    self.enc_ind2[i][ii].apply(self.weights_init)
 
                 # ball
                 self.enc_ind[i].append(
@@ -347,65 +273,35 @@ class MACRO_VRNN(nn.Module):
                         nn.Softplus(),
                     )
                 )  # nn.Sigmoid()
-                self.enc_ind[i][ii + 1].apply(
-                    self.weights_init
-                )
-                self.enc_ind2[i][ii + 1].apply(
-                    self.weights_init
-                )
+                self.enc_ind[i][ii + 1].apply(self.weights_init)
+                self.enc_ind2[i][ii + 1].apply(self.weights_init)
 
                 if self.batchnorm:
-                    self.bn1[i].append(
-                        nn.BatchNorm1d(
-                            embed_ball_size
-                        )
-                    )
-                    self.bn2[i].append(
-                        nn.BatchNorm1d(
-                            self.dim_ind_embed
-                        )
-                    )
+                    self.bn1[i].append(nn.BatchNorm1d(embed_ball_size))
+                    self.bn2[i].append(nn.BatchNorm1d(self.dim_ind_embed))
 
             elif self.attention >= 0:  # whole
                 self.enc_ind[i] = nn.Sequential(
                     nn.Linear(y_dim, in_state)
                 )  # n_all_agents+1))
-                self.enc_ind[i].apply(
-                    self.weights_init
-                )
+                self.enc_ind[i].apply(self.weights_init)
 
         # VRNN
-        if (
-            self.attention == -1
-        ):  # or not self.indep:
+        if self.attention == -1:  # or not self.indep:
             in_state = y_dim - 2
 
         if self.batchnorm:
             self.bn_enc = nn.ModuleList(
-                [
-                    nn.BatchNorm1d(h_dim)
-                    for i in range(n_agents)
-                ]
+                [nn.BatchNorm1d(h_dim) for i in range(n_agents)]
             )
             self.bn_prior = nn.ModuleList(
-                [
-                    nn.BatchNorm1d(h_dim)
-                    for i in range(n_agents)
-                ]
+                [nn.BatchNorm1d(h_dim) for i in range(n_agents)]
             )
             self.bn_dec = nn.ModuleList(
-                [
-                    nn.BatchNorm1d(h_dim)
-                    for i in range(n_agents)
-                ]
+                [nn.BatchNorm1d(h_dim) for i in range(n_agents)]
             )
 
-        in_prior = (
-            in_state0
-            + in_state
-            + m_dim
-            + rnn_micro_dim
-        )
+        in_prior = in_state0 + in_state + m_dim + rnn_micro_dim
         in_enc = in_prior + rnn_in_x
         in_enc_pre = in_prior + x_dim
 
@@ -424,10 +320,7 @@ class MACRO_VRNN(nn.Module):
         )
 
         self.enc_mean = nn.ModuleList(
-            [
-                nn.Linear(h_dim, z_dim)
-                for i in range(n_agents)
-            ]
+            [nn.Linear(h_dim, z_dim) for i in range(n_agents)]
         )
         self.enc_std = nn.ModuleList(
             [
@@ -442,9 +335,7 @@ class MACRO_VRNN(nn.Module):
         self.prior = nn.ModuleList(
             [
                 nn.Sequential(
-                    nn.Linear(
-                        in_prior, h_dim
-                    ),  # m_dim+rnn_micro_dim
+                    nn.Linear(in_prior, h_dim),  # m_dim+rnn_micro_dim
                     nn.ReLU(),
                     nn.Dropout(dropout),
                     nn.Linear(h_dim, h_dim),
@@ -455,10 +346,7 @@ class MACRO_VRNN(nn.Module):
             ]
         )
         self.prior_mean = nn.ModuleList(
-            [
-                nn.Linear(h_dim, z_dim)
-                for i in range(n_agents)
-            ]
+            [nn.Linear(h_dim, z_dim) for i in range(n_agents)]
         )
         self.prior_std = nn.ModuleList(
             [
@@ -474,11 +362,7 @@ class MACRO_VRNN(nn.Module):
             [
                 nn.Sequential(
                     nn.Linear(
-                        in_state0
-                        + in_state
-                        + m_dim
-                        + z_dim
-                        + rnn_micro_dim,
+                        in_state0 + in_state + m_dim + z_dim + rnn_micro_dim,
                         h_dim,
                     ),  # y_dim
                     nn.ReLU(),
@@ -491,19 +375,14 @@ class MACRO_VRNN(nn.Module):
             ]
         )
         self.dec_mean = nn.ModuleList(
-            [
-                nn.Linear(h_dim, rnn_in_x - 1)
-                for i in range(n_agents)
-            ]
+            [nn.Linear(h_dim, rnn_in_x - 1) for i in range(n_agents)]
         )
 
         # if not self.fixedsigma:
         self.dec_std = nn.ModuleList(
             [
                 nn.Sequential(
-                    nn.Linear(
-                        h_dim, rnn_in_x - 1
-                    ),
+                    nn.Linear(h_dim, rnn_in_x - 1),
                     nn.Softplus(),
                 )
                 for i in range(n_agents)
@@ -513,10 +392,7 @@ class MACRO_VRNN(nn.Module):
         #     nn.Linear(h_dim, 1),
         #     nn.Sigmoid()) for i in range(n_agents)])
         self.dec_pulse = nn.ModuleList(
-            [
-                nn.Sequential(nn.Linear(h_dim, 1))
-                for i in range(n_agents)
-            ]
+            [nn.Sequential(nn.Linear(h_dim, 1)) for i in range(n_agents)]
         )
 
         self.gru_micro = nn.ModuleList(
@@ -550,12 +426,8 @@ class MACRO_VRNN(nn.Module):
             if type(m) == nn.Linear:  # in ,nn.GRU
                 nn.init.xavier_normal_(m.weight)
             elif type(m) == nn.GRU:
-                nn.init.xavier_normal_(
-                    m.weight_hh_l0
-                )
-                nn.init.xavier_normal_(
-                    m.weight_ih_l0
-                )
+                nn.init.xavier_normal_(m.weight_hh_l0)
+                nn.init.xavier_normal_(m.weight_ih_l0)
 
     def func_attention(
         self,
@@ -575,103 +447,57 @@ class MACRO_VRNN(nn.Module):
         temperature = self.params["temperature"]
         ball_dim = self.params["ball_dim"]
         embed_size = self.params["embed_size"]
-        embed_ball_size = self.params[
-            "embed_ball_size"
-        ]
-        device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "cpu"
-        )
+        embed_ball_size = self.params["embed_ball_size"]
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         if Sample:
             self.enc_ind = self.enc_ind.to(device)
-            self.enc_ind2 = self.enc_ind2.to(
-                device
-            )
+            self.enc_ind2 = self.enc_ind2.to(device)
             # $self.fc_ind_att = self.fc_ind_att.to(device)
             if self.attention == 1:
-                self.fc_soft_att = (
-                    self.fc_soft_att.to(device)
-                )
+                self.fc_soft_att = self.fc_soft_att.to(device)
             if self.gru_att:
-                self.rnn_att = self.rnn_att.to(
-                    device
-                )
+                self.rnn_att = self.rnn_att.to(device)
 
         # individual embedding
         if self.attention >= 2:  # individual
             ind_embed = []
             ind_embed2 = []
             for ii in range(n_all_agents + 1):
-                ii_dim = (
-                    pl_dim
-                    if ii < n_all_agents
-                    else ball_dim
-                )
-                ball = (
-                    False
-                    if ii < n_all_agents
-                    else True
-                )
+                ii_dim = pl_dim if ii < n_all_agents else ball_dim
+                ball = False if ii < n_all_agents else True
 
                 tmp_ind = self.enc_ind[i][ii](
                     y_t[
                         :,
-                        ii * n_feat : ii * n_feat
-                        + ii_dim,
+                        ii * n_feat : ii * n_feat + ii_dim,
                     ]
                 )
                 if self.batchnorm:
-                    tmp_ind = self.bn1[i][ii](
-                        tmp_ind
-                    )
+                    tmp_ind = self.bn1[i][ii](tmp_ind)
                 ind_embed.append(tmp_ind)
-                tmp_ind2 = self.enc_ind2[i][ii](
-                    tmp_ind
-                )
+                tmp_ind2 = self.enc_ind2[i][ii](tmp_ind)
                 if self.batchnorm:
-                    tmp_ind2 = self.bn2[i][ii](
-                        tmp_ind2
-                    )
-                ind_embed2.append(
-                    tmp_ind2
-                )  # (batch, embed_dim)
+                    tmp_ind2 = self.bn2[i][ii](tmp_ind2)
+                ind_embed2.append(tmp_ind2)  # (batch, embed_dim)
 
         # soft attention
-        if (
-            self.attention >= 2
-        ):  # individual attention
-            emb_cat = torch.stack(
-                ind_embed2, dim=1
-            )
+        if self.attention >= 2:  # individual attention
+            emb_cat = torch.stack(ind_embed2, dim=1)
 
         if self.attention == 2:
-            axis_soft = (
-                1 if self.attention == 2 else 2
-            )
-            soft_att = F.softmax(
-                emb_cat, dim=axis_soft
-            )[:, :, 0]
+            axis_soft = 1 if self.attention == 2 else 2
+            soft_att = F.softmax(emb_cat, dim=axis_soft)[:, :, 0]
         else:
             soft_att = []
 
         # hard attention
         if self.attention == 3:
-            hard_att = sample_gumbel_softmax(
-                emb_cat, temperature
-            )[:, :, 0]
+            hard_att = sample_gumbel_softmax(emb_cat, temperature)[:, :, 0]
         else:
             hard_att = []
 
-        if (
-            torch.sum(
-                torch.abs(
-                    self.enc_ind[0][0][0].weight
-                )
-            )
-            > 1e10
-        ):
+        if torch.sum(torch.abs(self.enc_ind[0][0][0].weight)) > 1e10:
             print("weigh is very large")
             print(self.enc_ind[0][0][0].weight)
             print(self.enc_ind[0][0][0].bias)
@@ -691,28 +517,22 @@ class MACRO_VRNN(nn.Module):
 
         if macro:
             if self.attention == 2:
-                state_in = (
-                    self.multiply_attention(
-                        ind_embed,
-                        soft_att,
-                        device,
-                        batchSize,
-                        n_all_agents,
-                    )
+                state_in = self.multiply_attention(
+                    ind_embed,
+                    soft_att,
+                    device,
+                    batchSize,
+                    n_all_agents,
                 )
             elif self.attention == 3:
-                state_in = (
-                    self.multiply_attention(
-                        ind_embed,
-                        hard_att,
-                        device,
-                        batchSize,
-                        n_all_agents,
-                    )
+                state_in = self.multiply_attention(
+                    ind_embed,
+                    hard_att,
+                    device,
+                    batchSize,
+                    n_all_agents,
                 )
-            dec_macro_t = self.dec_macro[i](
-                torch.cat([state_in, h], 1)
-            )
+            dec_macro_t = self.dec_macro[i](torch.cat([state_in, h], 1))
         else:
             dec_macro_t = []
         return (
@@ -730,18 +550,14 @@ class MACRO_VRNN(nn.Module):
         batchSize,
         n_all_agents,
     ):
-        state_in = torch.zeros(0, batchSize).to(
-            device
-        )
+        state_in = torch.zeros(0, batchSize).to(device)
         for k in range(n_all_agents + 1):
             state_in = torch.cat(
                 [
                     state_in,
                     ind_embed[
                         :,
-                        self.embed_size
-                        * k : self.embed_size
-                        * (k + 1),
+                        self.embed_size * k : self.embed_size * (k + 1),
                     ].transpose(0, 1)
                     * att[:, k],
                 ],
@@ -751,33 +567,23 @@ class MACRO_VRNN(nn.Module):
 
     # only in acc == -1
     def state2pva(self, y_t, pva):
-        device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "cpu"
-        )
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         n_all_agents = self.params["n_all_agents"]
         n_feat = self.params["n_feat"]
         batchSize = y_t.size(0)
 
-        pos_t = torch.zeros(
-            batchSize, n_all_agents * 2 + 2
-        ).to(device)
+        pos_t = torch.zeros(batchSize, n_all_agents * 2 + 2).to(device)
         for i in range(n_all_agents + 1):
             if self.in_sma:
                 pos_t[:, i * 2 : i * 2 + 2] = y_t[
                     :, n_feat * i : n_feat * i + 2
                 ]
             elif self.in_out:
-                pos_t[:, i * 2 : i * 2 + 2] = y_t[
-                    :, 0:2
-                ]
+                pos_t[:, i * 2 : i * 2 + 2] = y_t[:, 0:2]
             else:
                 pos_t[:, i * 2 : i * 2 + 2] = y_t[
                     :,
-                    n_feat * i
-                    + 3 : n_feat * i
-                    + 5,
+                    n_feat * i + 3 : n_feat * i + 5,
                 ]
 
         if pva == 1:
@@ -792,63 +598,31 @@ class MACRO_VRNN(nn.Module):
         macro=None,
         hp=None,
     ):
-        device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "cpu"
-        )
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         acc = self.params["acc"]
         body = self.params["body"]
         out = {}
         out2 = {}
         if hp["pretrain"]:
-            out["L_mac"] = torch.zeros(1).to(
-                device
-            )
-            out2["dummy"] = torch.zeros(1).to(
-                device
-            )
+            out["L_mac"] = torch.zeros(1).to(device)
+            out2["dummy"] = torch.zeros(1).to(device)
         else:
-            out["L_kl"] = torch.zeros(1).to(
-                device
-            )
-            out["L_rec"] = torch.zeros(1).to(
-                device
-            )
-            out["pulse_flag"] = torch.zeros(1).to(
-                device
-            )
-            out2["e_pos"] = torch.zeros(1).to(
-                device
-            )
-            out2["e_vel"] = torch.zeros(1).to(
-                device
-            )
-            out2["e_acc"] = torch.zeros(1).to(
-                device
-            )
-            out2["e_jrk"] = torch.zeros(1).to(
-                device
-            )
+            out["L_kl"] = torch.zeros(1).to(device)
+            out["L_rec"] = torch.zeros(1).to(device)
+            out["pulse_flag"] = torch.zeros(1).to(device)
+            out2["e_pos"] = torch.zeros(1).to(device)
+            out2["e_vel"] = torch.zeros(1).to(device)
+            out2["e_acc"] = torch.zeros(1).to(device)
+            out2["e_jrk"] = torch.zeros(1).to(device)
             if self.macro:
-                out2["e_mac"] = torch.zeros(1).to(
-                    device
-                )
+                out2["e_mac"] = torch.zeros(1).to(device)
             if self.attention == 3:
-                out2["att"] = torch.zeros(1).to(
-                    device
-                )
+                out2["att"] = torch.zeros(1).to(device)
             if self.L_acc:
-                out["L_vel"] = torch.zeros(1).to(
-                    device
-                )
-                out["L_acc"] = torch.zeros(1).to(
-                    device
-                )
+                out["L_vel"] = torch.zeros(1).to(device)
+                out["L_acc"] = torch.zeros(1).to(device)
             if body:
-                out["L_jrk"] = torch.zeros(1).to(
-                    device
-                )
+                out["L_jrk"] = torch.zeros(1).to(device)
 
         n_agents = self.params["n_agents"]
         n_feat = self.params["n_feat"]  # added
@@ -859,9 +633,7 @@ class MACRO_VRNN(nn.Module):
         n_all_agents = self.params["n_all_agents"]
 
         batchSize = states.size(2)
-        len_time = self.params[
-            "horizon"
-        ]  # states.size(0)
+        len_time = self.params["horizon"]  # states.size(0)
 
         # states_single = index_by_agent(states, n_agents)
         h_micro = [
@@ -888,10 +660,7 @@ class MACRO_VRNN(nn.Module):
             ]
         else:
             m_t = [
-                torch.zeros(batchSize, 0).to(
-                    device
-                )
-                for i in range(n_agents)
+                torch.zeros(batchSize, 0).to(device) for i in range(n_agents)
             ]
             h_macro = [
                 torch.zeros(
@@ -909,13 +678,8 @@ class MACRO_VRNN(nn.Module):
 
         for t in range(len_time):
             if self.macro:
-                m_t = macro_single[
-                    t
-                ].clone()  # (agents,batch,one-hot)
-                if (
-                    hp["pretrain"]
-                    or not self.indep
-                ):
+                m_t = macro_single[t].clone()  # (agents,batch,one-hot)
+                if hp["pretrain"] or not self.indep:
                     for i in range(n_agents):
                         y_t = states[t][i].clone()
                         if self.indep:
@@ -932,20 +696,12 @@ class MACRO_VRNN(nn.Module):
                                 macro=True,
                             )
                         else:
-                            pos_t = (
-                                self.state2pva(
-                                    y_t, 1
-                                )
-                            )
-                            dec_macro_t = self.dec_macro[
-                                i
-                            ](
+                            pos_t = self.state2pva(y_t, 1)
+                            dec_macro_t = self.dec_macro[i](
                                 torch.cat(
                                     [
                                         pos_t,
-                                        h_macro[
-                                            i
-                                        ][-1],
+                                        h_macro[i][-1],
                                     ],
                                     1,
                                 )
@@ -954,53 +710,32 @@ class MACRO_VRNN(nn.Module):
                             _,
                             h_macro[i],
                         ) = self.gru_macro[i](
-                            torch.cat(
-                                [m_t[i]], 1
-                            ).unsqueeze(0),
+                            torch.cat([m_t[i]], 1).unsqueeze(0),
                             h_macro[i],
                         )
 
                         if hp["pretrain"]:
-                            out[
-                                "L_mac"
-                            ] -= torch.sum(
-                                m_t[i]
-                                * dec_macro_t
-                            )
+                            out["L_mac"] -= torch.sum(m_t[i] * dec_macro_t)
                         elif not self.indep:
-                            out2[
-                                "e_mac"
-                            ] -= torch.sum(
-                                m_t[i]
-                                * dec_macro_t
-                            )
+                            out2["e_mac"] -= torch.sum(m_t[i] * dec_macro_t)
 
             if not hp["pretrain"]:
-                prediction_all = torch.zeros(
-                    batchSize, n_agents, x_dim
-                )
+                prediction_all = torch.zeros(batchSize, n_agents, x_dim)
                 for i in range(n_agents):
                     y_t = states[t][i].clone()
 
                     if self.in_out:
-                        x_t0 = states[t + 1][
-                            i
-                        ].clone()  # pos, vel, acc
+                        x_t0 = states[t + 1][i].clone()  # pos, vel, acc
                     elif self.dataset == "bat":
                         if self.in_sma:  # 2dim
-                            x_t0 = states[t + 1][
-                                i
-                            ][
+                            x_t0 = states[t + 1][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
                             next_pulse = (
                                 states[t + 1][i][
                                     :,
-                                    n_feat * i
-                                    + 5,
+                                    n_feat * i + 5,
                                 ]
                                 .clone()
                                 .reshape(-1, 1)
@@ -1022,37 +757,24 @@ class MACRO_VRNN(nn.Module):
                             # ).clone()
 
                         else:  # 3dim
-                            x_t0 = states[t + 1][
-                                i
-                            ][
+                            x_t0 = states[t + 1][i][
                                 :,
-                                n_feat * i
-                                + 3 : n_feat * i
-                                + 6,
+                                n_feat * i + 3 : n_feat * i + 6,
                             ].clone()
                     elif self.in_sma:
                         x_t0 = states[t + 1][i][
                             :,
-                            n_feat
-                            * i : n_feat
-                            * i
-                            + n_feat,
+                            n_feat * i : n_feat * i + n_feat,
                         ].clone()
                     elif n_feat == 13:
                         x_t0 = states[t + 1][i][
                             :,
-                            n_feat * i
-                            + 3 : n_feat * i
-                            + x_dim
-                            + 5,
+                            n_feat * i + 3 : n_feat * i + x_dim + 5,
                         ].clone()
                     elif n_feat == 15:
                         x_t0 = states[t + 1][i][
                             :,
-                            n_feat * i
-                            + 3 : n_feat * i
-                            + x_dim
-                            + 7,
+                            n_feat * i + 3 : n_feat * i + x_dim + 7,
                         ].clone()  # pos, vel, acc
 
                     # action
@@ -1061,13 +783,9 @@ class MACRO_VRNN(nn.Module):
                     elif acc == 0:
                         x_t = x_t0[:, 2:4]  # vel
                     elif acc == 1:
-                        x_t = x_t0[
-                            :, 0:4
-                        ]  # pos,vel
+                        x_t = x_t0[:, 0:4]  # pos,vel
                     elif acc == 2:
-                        x_t = x_t0[
-                            :, 2:6
-                        ]  # vel,acc
+                        x_t = x_t0[:, 2:6]  # vel,acc
                     elif acc == 3:
                         x_t = x_t0[:, 0:6]
                     elif acc == 4:
@@ -1079,172 +797,100 @@ class MACRO_VRNN(nn.Module):
                         if self.in_sma:  # 2dim
                             current_pos = y_t[
                                 :,
-                                n_feat
-                                * i : n_feat
-                                * i
-                                + 2,
+                                n_feat * i : n_feat * i + 2,
                             ]
                             current_vel = y_t[
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ]
-                            flag_pulse = y_t[
-                                :, n_feat * i + 5
-                            ].clone()
+                            flag_pulse = y_t[:, n_feat * i + 5].clone()
                             current_vel_with_pulse = torch.cat(
                                 (
                                     current_vel,
-                                    flag_pulse.reshape(
-                                        -1, 1
-                                    ),
+                                    flag_pulse.reshape(-1, 1),
                                 ),
                                 dim=1,
                             )
                             v0_t1 = x_t0
-                            v0_t2 = states[t + 2][
-                                i
-                            ][
+                            v0_t2 = states[t + 2][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
-                            a0_t1 = (
-                                v0_t2 - v0_t1
-                            ) / fs
+                            a0_t1 = (v0_t2 - v0_t1) / fs
                         else:  # 3dim
                             current_pos = y_t[
                                 :,
-                                n_feat
-                                * i : n_feat
-                                * i
-                                + 3,
+                                n_feat * i : n_feat * i + 3,
                             ]
                             current_vel = y_t[
                                 :,
-                                n_feat * i
-                                + 3 : n_feat * i
-                                + 6,
+                                n_feat * i + 3 : n_feat * i + 6,
                             ]
                             v0_t1 = x_t0
-                            v0_t2 = states[t + 2][
-                                i
-                            ][
+                            v0_t2 = states[t + 2][i][
                                 :,
-                                n_feat * i
-                                + 3 : n_feat * i
-                                + 6,
+                                n_feat * i + 3 : n_feat * i + 6,
                             ].clone()
-                            a0_t1 = (
-                                v0_t2 - v0_t1
-                            ) / fs
+                            a0_t1 = (v0_t2 - v0_t1) / fs
                     elif self.in_sma:
                         current_pos = y_t[
                             :,
-                            n_feat
-                            * i : n_feat
-                            * i
-                            + 2,
+                            n_feat * i : n_feat * i + 2,
                         ]
                         p0_t2 = states[t + 2][i][
                             :,
-                            n_feat
-                            * i : n_feat
-                            * i
-                            + 2,
+                            n_feat * i : n_feat * i + 2,
                         ].clone()
                         if acc >= 0:
                             current_vel = y_t[
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ]
                             v0_t1 = x_t0[:, 2:4]
-                            v0_t2 = states[t + 2][
-                                i
-                            ][
+                            v0_t2 = states[t + 2][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
 
                             if acc >= 2:
                                 current_acc = y_t[
                                     :,
-                                    n_feat * i
-                                    + 4 : n_feat
-                                    * i
-                                    + 6,
+                                    n_feat * i + 4 : n_feat * i + 6,
                                 ]
-                                a0_t1 = x_t0[
-                                    :, 4:6
-                                ]
+                                a0_t1 = x_t0[:, 4:6]
                             else:
-                                current_acc = (
-                                    x_t0[:, 2:4]
-                                    - current_vel
-                                ) / fs
-                                a0_t1 = (
-                                    v0_t2 - v0_t1
-                                ) / fs
+                                current_acc = (x_t0[:, 2:4] - current_vel) / fs
+                                a0_t1 = (v0_t2 - v0_t1) / fs
 
                         elif acc == -1:
-                            current_vel = (
-                                x_t0 - current_pos
-                            ) / fs
-                            p0_t3 = states[t + 3][
-                                i
-                            ][
+                            current_vel = (x_t0 - current_pos) / fs
+                            p0_t3 = states[t + 3][i][
                                 :,
-                                n_feat
-                                * i : n_feat
-                                * i
-                                + 2,
+                                n_feat * i : n_feat * i + 2,
                             ].clone()
-                            v0_t2 = (
-                                p0_t3 - p0_t2
-                            ) / fs
-                            v0_t1 = (
-                                p0_t2 - x_t0
-                            ) / fs
+                            v0_t2 = (p0_t3 - p0_t2) / fs
+                            v0_t1 = (p0_t2 - x_t0) / fs
 
-                            a0_t1 = (
-                                v0_t2 - v0_t1
-                            ) / fs
-                            current_acc = (
-                                v0_t1
-                                - current_vel
-                            ) / fs
+                            a0_t1 = (v0_t2 - v0_t1) / fs
+                            current_acc = (v0_t1 - current_vel) / fs
                     elif self.in_out:
                         current_pos = y_t[:, 0:2]
                         current_vel = y_t[:, 2:4]
-                        v0_t2 = states[t + 2][i][
-                            :, 2:4
-                        ].clone()
+                        v0_t2 = states[t + 2][i][:, 2:4].clone()
                         # current_acc
                     else:
                         current_pos = y_t[
                             :,
-                            n_feat * i
-                            + 3 : n_feat * i
-                            + 5,
+                            n_feat * i + 3 : n_feat * i + 5,
                         ]
                         current_vel = y_t[
                             :,
-                            n_feat * i
-                            + 5 : n_feat * i
-                            + 7,
+                            n_feat * i + 5 : n_feat * i + 7,
                         ]
                         # current_acc
                         v0_t2 = states[t + 2][i][
                             :,
-                            n_feat * i
-                            + 5 : n_feat * i
-                            + 7,
+                            n_feat * i + 5 : n_feat * i + 7,
                         ].clone()
 
                     if self.in_state0:
@@ -1269,9 +915,7 @@ class MACRO_VRNN(nn.Module):
                                 1,
                             )
                         elif acc == 4:
-                            state_in0 = (
-                                current_acc
-                            )
+                            state_in0 = current_acc
                         elif acc == 2:
                             state_in0 = torch.cat(
                                 [
@@ -1281,22 +925,14 @@ class MACRO_VRNN(nn.Module):
                                 1,
                             )
                         elif acc == 0:
-                            state_in0 = (
-                                current_vel
-                            )
+                            state_in0 = current_vel
                         elif acc == -1:
-                            state_in0 = (
-                                current_pos
-                            )
+                            state_in0 = current_pos
                     else:
-                        state_in0 = torch.zeros(
-                            batchSize, 0
-                        ).to(device)
+                        state_in0 = torch.zeros(batchSize, 0).to(device)
 
                     # attention
-                    if (
-                        self.attention >= 1
-                    ):  # individual
+                    if self.attention >= 1:  # individual
                         (
                             soft_att,
                             hard_att,
@@ -1310,23 +946,11 @@ class MACRO_VRNN(nn.Module):
                             Sample=False,
                             macro=(self.macro),
                         )
-                        if (
-                            self.indep
-                            and self.macro
-                        ):
-                            out2[
-                                "e_mac"
-                            ] -= torch.sum(
-                                m_t[i]
-                                * dec_macro_t
-                            )
+                        if self.indep and self.macro:
+                            out2["e_mac"] -= torch.sum(m_t[i] * dec_macro_t)
 
-                        if (
-                            self.attention == 3
-                        ):  # hard
-                            out2[
-                                "att"
-                            ] += torch.sum(
+                        if self.attention == 3:  # hard
+                            out2["att"] += torch.sum(
                                 hard_att
                             )  # /(n_all_agents+1)
                             state_in = self.multiply_attention(
@@ -1337,9 +961,7 @@ class MACRO_VRNN(nn.Module):
                                 n_all_agents,
                             )
 
-                        elif (
-                            self.attention >= 1
-                        ):  # soft
+                        elif self.attention >= 1:  # soft
                             state_in = self.multiply_attention(
                                 ind_embed,
                                 soft_att,
@@ -1348,16 +970,10 @@ class MACRO_VRNN(nn.Module):
                                 n_all_agents,
                             )
 
-                    elif (
-                        self.attention == 0
-                    ):  # w/ whole embedding
-                        state_in = self.enc_ind[
-                            i
-                        ](y_t)
+                    elif self.attention == 0:  # w/ whole embedding
+                        state_in = self.enc_ind[i](y_t)
 
-                    elif (
-                        self.attention == -1
-                    ):  # w/o embedding and attention
+                    elif self.attention == -1:  # w/o embedding and attention
                         state_in = y_t
                         state_in.pop(7)
                         state_in.pop(6)
@@ -1383,35 +999,17 @@ class MACRO_VRNN(nn.Module):
                     enc_t = self.enc[i](enc_in)
 
                     if self.batchnorm:
-                        enc_t = self.bn_enc[i](
-                            enc_t
-                        )
-                    enc_mean_t = self.enc_mean[i](
-                        enc_t
-                    )
-                    enc_std_t = self.enc_std[i](
-                        enc_t
-                    )
+                        enc_t = self.bn_enc[i](enc_t)
+                    enc_mean_t = self.enc_mean[i](enc_t)
+                    enc_std_t = self.enc_std[i](enc_t)
 
-                    prior_t = self.prior[i](
-                        prior_in
-                    )
+                    prior_t = self.prior[i](prior_in)
                     if self.batchnorm:
-                        prior_t = self.bn_prior[
-                            i
-                        ](prior_t)
-                    prior_mean_t = (
-                        self.prior_mean[i](
-                            prior_t
-                        )
-                    )
-                    prior_std_t = self.prior_std[
-                        i
-                    ](prior_t)
+                        prior_t = self.bn_prior[i](prior_t)
+                    prior_mean_t = self.prior_mean[i](prior_t)
+                    prior_std_t = self.prior_std[i](prior_t)
 
-                    z_t = sample_gauss(
-                        enc_mean_t, enc_std_t
-                    )
+                    z_t = sample_gauss(enc_mean_t, enc_std_t)
 
                     dec_t = self.dec[i](
                         torch.cat(
@@ -1426,38 +1024,23 @@ class MACRO_VRNN(nn.Module):
                         )
                     )
                     if self.batchnorm:
-                        dec_t = self.bn_dec[i](
-                            dec_t
-                        )
+                        dec_t = self.bn_dec[i](dec_t)
 
-                    dec_mean_t = self.dec_mean[i](
-                        dec_t
-                    )
+                    dec_mean_t = self.dec_mean[i](dec_t)
                     if self.res:
                         if acc == 3:
-                            dec_mean_t[
-                                :, 4:6
-                            ] += state_in0[:, 4:6]
+                            dec_mean_t[:, 4:6] += state_in0[:, 4:6]
                         elif acc == -1:
-                            dec_mean_t += (
-                                state_in0
-                            )
+                            dec_mean_t += state_in0
 
                     if not self.fixedsigma:
-                        dec_std_t = self.dec_std[
-                            i
-                        ](dec_t)
+                        dec_std_t = self.dec_std[i](dec_t)
                     else:
-                        dec_std_t = (
-                            self.fixedsigma**2
-                            * torch.ones(
-                                dec_mean_t.shape
-                            ).to(device)
-                        )
+                        dec_std_t = self.fixedsigma**2 * torch.ones(
+                            dec_mean_t.shape
+                        ).to(device)
 
-                    dec_pulse_t = self.dec_pulse[
-                        i
-                    ](dec_t)
+                    dec_pulse_t = self.dec_pulse[i](dec_t)
 
                     (
                         _,
@@ -1489,63 +1072,35 @@ class MACRO_VRNN(nn.Module):
                             dec_std_t[:, :2],
                             torch.cat([x_t], 1),
                         )
-                    elif (
-                        acc == 0
-                        and self.dataset == "bat"
-                    ):
+                    elif acc == 0 and self.dataset == "bat":
                         out["L_rec"] += nll_gauss(
                             dec_mean_t[:, :2],
                             dec_std_t[:, :2],
                             torch.cat([x_t], 1),
                         )
-                        out[
-                            "pulse_flag"
-                        ] += pulse_loss(
+                        out["pulse_flag"] += pulse_loss(
                             dec_pulse_t,
                             next_pulse,
                         )
                     else:
                         if self.L_acc:
                             if acc == 3:
-                                out["L_rec"] += (
-                                    self.gamma2
-                                    * nll_gauss(
-                                        dec_mean_t[
-                                            :, 2:6
-                                        ],
-                                        dec_std_t[
-                                            :, 2:6
-                                        ],
-                                        x_t[
-                                            :, 2:6
-                                        ],
-                                    )
+                                out["L_rec"] += self.gamma2 * nll_gauss(
+                                    dec_mean_t[:, 2:6],
+                                    dec_std_t[:, 2:6],
+                                    x_t[:, 2:6],
                                 )
                             elif acc == 4:
-                                out["L_rec"] += (
-                                    self.gamma2
-                                    * nll_gauss(
-                                        dec_mean_t,
-                                        dec_std_t,
-                                        x_t,
-                                    )
+                                out["L_rec"] += self.gamma2 * nll_gauss(
+                                    dec_mean_t,
+                                    dec_std_t,
+                                    x_t,
                                 )
-                            elif (
-                                acc == 2
-                            ):  # or acc == 0:
-                                out["L_rec"] += (
-                                    self.gamma2
-                                    * nll_gauss(
-                                        dec_mean_t[
-                                            :, 2:4
-                                        ],
-                                        dec_std_t[
-                                            :, 2:4
-                                        ],
-                                        x_t[
-                                            :, 2:4
-                                        ],
-                                    )
+                            elif acc == 2:  # or acc == 0:
+                                out["L_rec"] += self.gamma2 * nll_gauss(
+                                    dec_mean_t[:, 2:4],
+                                    dec_std_t[:, 2:4],
+                                    x_t[:, 2:4],
                                 )
 
                     del enc_t, prior_t, dec_t, z_t
@@ -1554,37 +1109,19 @@ class MACRO_VRNN(nn.Module):
                     # acc
                     if self.dataset == "bat":
                         v_t1 = dec_mean_t[:, :2]
-                        next_pos = (
-                            current_pos
-                            + v_t1 * fs
-                        )
+                        next_pos = current_pos + v_t1 * fs
                     elif acc == 1 or acc == 3:
                         v_t1 = dec_mean_t[:, 2:4]
-                        next_pos = dec_mean_t[
-                            :, :2
-                        ]
+                        next_pos = dec_mean_t[:, :2]
                     elif acc == 4:
-                        v_t1 = (
-                            current_vel
-                            + current_acc * fs
-                        )
-                        next_pos = (
-                            current_pos
-                            + current_vel * fs
-                        )
+                        v_t1 = current_vel + current_acc * fs
+                        next_pos = current_pos + current_vel * fs
                     elif acc == 0 or acc == 2:
                         v_t1 = dec_mean_t[:, :2]
-                        next_pos = (
-                            current_pos
-                            + current_vel * fs
-                        )
+                        next_pos = current_pos + current_vel * fs
                     elif acc == -1:
-                        next_pos = dec_mean_t[
-                            :, :2
-                        ]
-                        v_t1 = (
-                            p0_t2 - next_pos
-                        ) / fs
+                        next_pos = dec_mean_t[:, :2]
+                        v_t1 = (p0_t2 - next_pos) / fs
 
                     if self.dataset == "bat":
                         a_t1 = (v0_t2 - v_t1) / fs
@@ -1600,255 +1137,123 @@ class MACRO_VRNN(nn.Module):
                         a_t1 = (v0_t2 - v_t1) / fs
 
                     if self.L_acc:
-                        if (
-                            acc == 3
-                        ):  # direct and indirect
-                            out["L_vel"] += (
-                                self.beta
-                                * kld_gauss(
-                                    v_t1,
-                                    dec_std_t[
-                                        :, 2:4
-                                    ],
-                                    (
-                                        p0_t2
-                                        - next_pos
-                                    )
-                                    / fs,
-                                    dec_std_t[
-                                        :, 0:2
-                                    ]
-                                    / fs,
-                                )
+                        if acc == 3:  # direct and indirect
+                            out["L_vel"] += self.beta * kld_gauss(
+                                v_t1,
+                                dec_std_t[:, 2:4],
+                                (p0_t2 - next_pos) / fs,
+                                dec_std_t[:, 0:2] / fs,
                             )
-                            out["L_acc"] += (
-                                self.gamma1
-                                * kld_gauss(
-                                    a_t1,
-                                    dec_std_t[
-                                        :, 4:6
-                                    ],
-                                    (v0_t2 - v_t1)
-                                    / fs,
-                                    dec_std_t[
-                                        :, 2:4
-                                    ]
-                                    / fs,
-                                )
+                            out["L_acc"] += self.gamma1 * kld_gauss(
+                                a_t1,
+                                dec_std_t[:, 4:6],
+                                (v0_t2 - v_t1) / fs,
+                                dec_std_t[:, 2:4] / fs,
                             )
                         # elif acc == 4:# TBD
                         elif acc == 2:
                             if t > 0:
-                                out["L_vel"] += (
-                                    self.beta
-                                    * nll_gauss(
-                                        current_pos
-                                        + dec_mean_t0[
-                                            :, 0:2
-                                        ]
-                                        * fs,
-                                        dec_std_t0[
-                                            :, 0:2
-                                        ]
-                                        * fs,
-                                        next_pos,
-                                    )
+                                out["L_vel"] += self.beta * nll_gauss(
+                                    current_pos + dec_mean_t0[:, 0:2] * fs,
+                                    dec_std_t0[:, 0:2] * fs,
+                                    next_pos,
                                 )
-                            out["L_acc"] += (
-                                self.gamma1
-                                * kld_gauss(
-                                    a_t1,
-                                    dec_std_t[
-                                        :, 2:4
-                                    ],
-                                    (v0_t2 - v_t1)
-                                    / fs,
-                                    dec_std_t[
-                                        :, 0:2
-                                    ]
-                                    / fs,
-                                )
+                            out["L_acc"] += self.gamma1 * kld_gauss(
+                                a_t1,
+                                dec_std_t[:, 2:4],
+                                (v0_t2 - v_t1) / fs,
+                                dec_std_t[:, 0:2] / fs,
                             )
                         elif acc == 0:
-                            out["L_vel"] += (
-                                self.beta
-                                * batch_error(
-                                    next_pos,
-                                    x_t0[:, :2],
-                                )
+                            out["L_vel"] += self.beta * batch_error(
+                                next_pos,
+                                x_t0[:, :2],
                             )
-                            out["L_acc"] += (
-                                self.gamma1
-                                * batch_error(
-                                    a0_t1, a_t1
-                                )
+                            out["L_acc"] += self.gamma1 * batch_error(
+                                a0_t1, a_t1
                             )
                         else:
-                            out["L_vel"] += (
-                                self.beta
-                                * batch_error(
-                                    v_t1, v0_t1
-                                )
-                            )
-                            out["L_acc"] += (
-                                self.gamma1
-                                * batch_error(
-                                    a0_t1, a_t1
-                                )
+                            out["L_vel"] += self.beta * batch_error(v_t1, v0_t1)
+                            out["L_acc"] += self.gamma1 * batch_error(
+                                a0_t1, a_t1
                             )  # GT and indirect
 
                     # jerk
                     if self.dataset == "bat":
                         if self.in_sma:  # 2dim
-                            v0_t3 = states[t + 3][
-                                i
-                            ][
+                            v0_t3 = states[t + 3][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
-                            a_t2 = (
-                                v0_t3 - v0_t2
-                            ) / fs
+                            a_t2 = (v0_t3 - v0_t2) / fs
                         else:
-                            v0_t3 = states[t + 3][
-                                i
-                            ][
+                            v0_t3 = states[t + 3][i][
                                 :,
-                                n_feat * i
-                                + 3 : n_feat * i
-                                + 6,
+                                n_feat * i + 3 : n_feat * i + 6,
                             ].clone()
-                            a_t2 = (
-                                v0_t3 - v0_t2
-                            ) / fs
+                            a_t2 = (v0_t3 - v0_t2) / fs
                     elif n_feat == 15:
                         a_t2 = states[t + 2][i][
                             :,
-                            n_feat * i
-                            + 7 : n_feat * i
-                            + 9,
+                            n_feat * i + 7 : n_feat * i + 9,
                         ].clone()
                     elif n_feat == 6:
                         a_t2 = states[t + 2][i][
                             :,
-                            n_feat * i
-                            + 4 : n_feat * i
-                            + 6,
+                            n_feat * i + 4 : n_feat * i + 6,
                         ].clone()
                     elif n_feat == 4:
                         if acc >= 0:
-                            v0_t3 = states[t + 3][
-                                i
-                            ][
+                            v0_t3 = states[t + 3][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
-                            a_t2 = (
-                                v0_t3 - v0_t2
-                            ) / fs
+                            a_t2 = (v0_t3 - v0_t2) / fs
                     elif n_feat == 2:
                         p0_t4 = states[t + 4][i][
                             :,
-                            n_feat
-                            * i : n_feat
-                            * i
-                            + 2,
+                            n_feat * i : n_feat * i + 2,
                         ].clone()
-                        v0_t3 = (
-                            p0_t4 - p0_t3
-                        ) / fs
-                        a_t2 = (
-                            v0_t3 - v0_t2
-                        ) / fs
+                        v0_t3 = (p0_t4 - p0_t3) / fs
+                        a_t2 = (v0_t3 - v0_t2) / fs
 
                     if body:
                         if acc == 2:
-                            out["L_jrk"] += (
-                                self.jrk
-                                * nll_gauss(
-                                    a_t1,
-                                    dec_std_t[
-                                        :, 2:
-                                    ],
-                                    a_t2,
-                                )
+                            out["L_jrk"] += self.jrk * nll_gauss(
+                                a_t1,
+                                dec_std_t[:, 2:],
+                                a_t2,
                             )
                         elif acc == 3:
-                            out["L_jrk"] += (
-                                self.jrk
-                                * nll_gauss(
-                                    a_t1,
-                                    dec_std_t[
-                                        :, 4:
-                                    ],
-                                    a_t2,
-                                )
+                            out["L_jrk"] += self.jrk * nll_gauss(
+                                a_t1,
+                                dec_std_t[:, 4:],
+                                a_t2,
                             )
                         # elif acc == 4:# TBD
                         else:
-                            out["L_jrk"] += (
-                                self.jrk
-                                * batch_error(
-                                    a_t1, a_t2
-                                )
-                            )
+                            out["L_jrk"] += self.jrk * batch_error(a_t1, a_t2)
 
                     # evaluation (not learned)
-                    if (
-                        t >= burn_in
-                        or burn_in == len_time
-                    ):
+                    if t >= burn_in or burn_in == len_time:
                         # prediction
-                        prediction_all[
-                            :, i, : x_dim - 1
-                        ] = dec_mean_t[
+                        prediction_all[:, i, : x_dim - 1] = dec_mean_t[
                             :, : x_dim - 1
                         ]
-                        prediction_all[
-                            :, i, x_dim
-                        ] = dec_pulse_t
+                        prediction_all[:, i, x_dim] = dec_pulse_t
 
                         # error (not used when backward)
-                        out2[
-                            "e_pos"
-                        ] += batch_error(
-                            next_pos, x_t0[:, :2]
-                        )
-                        out2[
-                            "e_vel"
-                        ] += batch_error(
-                            v_t1, v0_t1
-                        )
+                        out2["e_pos"] += batch_error(next_pos, x_t0[:, :2])
+                        out2["e_vel"] += batch_error(v_t1, v0_t1)
 
                         if acc >= 2:
-                            out2[
-                                "e_acc"
-                            ] += batch_error(
-                                a_t1, x_t0[:, 4:6]
-                            )
+                            out2["e_acc"] += batch_error(a_t1, x_t0[:, 4:6])
                         else:
-                            out2[
-                                "e_acc"
-                            ] += batch_error(
-                                a_t1, a0_t1
-                            )
-                        out2[
-                            "e_jrk"
-                        ] += batch_error(
-                            a_t1, a_t2
-                        )
+                            out2["e_acc"] += batch_error(a_t1, a0_t1)
+                        out2["e_jrk"] += batch_error(a_t1, a_t2)
 
-                        if (
-                            rollout
-                            and self.in_out
-                        ):  # for acc == 3, TBD
-                            states[
-                                t + 1, i, :, :
-                            ] = torch.cat(
+                        if rollout and self.in_out:  # for acc == 3, TBD
+                            states[t + 1, i, :, :] = torch.cat(
                                 [next_pos, v_t1],
                                 dim=1,
                             )
@@ -1864,27 +1269,16 @@ class MACRO_VRNN(nn.Module):
                         dec_mean_t0 = dec_mean_t
                         dec_std_t0 = dec_std_t
                 # role out
-                if (
-                    t >= burn_in
-                    and not self.in_out
-                ):  # if rollout:
+                if t >= burn_in and not self.in_out:  # if rollout:
                     for i in range(n_agents):
-                        y_t = states[t][
-                            i
-                        ].clone()  # state
-                        y_t1i = states[t + 1][
-                            i
-                        ].clone()
-                        states[t + 1][
-                            i
-                        ] = roll_out(
+                        y_t = states[t][i].clone()  # state
+                        y_t1i = states[t + 1][i].clone()
+                        states[t + 1][i] = roll_out(
                             y_t,
                             y_t1i,
                             prediction_all,
                             acc,
-                            self.params[
-                                "normalize"
-                            ],
+                            self.params["normalize"],
                             n_agents,
                             n_feat,
                             ball_dim,
@@ -1897,59 +1291,29 @@ class MACRO_VRNN(nn.Module):
             out["L_mac"] /= (len_time) * n_agents
         else:
             if burn_in == len_time:
-                out2["e_pos"] /= (
-                    len_time
-                ) * n_agents
-                out2["e_vel"] /= (
-                    len_time
-                ) * n_agents
-                out2["e_acc"] /= (
-                    len_time
-                ) * n_agents
-                out2["e_jrk"] /= (
-                    len_time
-                ) * n_agents
+                out2["e_pos"] /= (len_time) * n_agents
+                out2["e_vel"] /= (len_time) * n_agents
+                out2["e_acc"] /= (len_time) * n_agents
+                out2["e_jrk"] /= (len_time) * n_agents
                 if self.macro:
-                    out2["e_mac"] /= (
-                        len_time
-                    ) * n_agents
+                    out2["e_mac"] /= (len_time) * n_agents
             else:
-                out2["e_pos"] /= (
-                    len_time - burn_in
-                ) * n_agents
-                out2["e_vel"] /= (
-                    len_time - burn_in
-                ) * n_agents
-                out2["e_acc"] /= (
-                    len_time - burn_in
-                ) * n_agents
-                out2["e_jrk"] /= (
-                    len_time - burn_in
-                ) * n_agents
+                out2["e_pos"] /= (len_time - burn_in) * n_agents
+                out2["e_vel"] /= (len_time - burn_in) * n_agents
+                out2["e_acc"] /= (len_time - burn_in) * n_agents
+                out2["e_jrk"] /= (len_time - burn_in) * n_agents
                 if self.macro:
-                    out2["e_mac"] /= (
-                        len_time - burn_in
-                    ) * n_agents
+                    out2["e_mac"] /= (len_time - burn_in) * n_agents
             out["L_kl"] /= (len_time) * n_agents
             out["L_rec"] /= (len_time) * n_agents
-            out["pulse_flag"] /= (
-                len_time
-            ) * n_agents
+            out["pulse_flag"] /= (len_time) * n_agents
             if body:
-                out["L_jrk"] /= (
-                    len_time
-                ) * n_agents
+                out["L_jrk"] /= (len_time) * n_agents
             if self.L_acc:
-                out["L_vel"] /= (
-                    len_time
-                ) * n_agents
-                out["L_acc"] /= (
-                    len_time
-                ) * n_agents
+                out["L_vel"] /= (len_time) * n_agents
+                out["L_acc"] /= (len_time) * n_agents
             if self.attention == 3:
-                out2["att"] /= (
-                    len_time
-                ) * n_agents
+                out2["att"] /= (len_time) * n_agents
 
         return out, out2
 
@@ -1965,11 +1329,7 @@ class MACRO_VRNN(nn.Module):
         n_sample=1,
         TEST=False,
     ):
-        device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "cpu"
-        )
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         out = {}
         out2 = {}
         batchSize = states.size(2)
@@ -1977,56 +1337,40 @@ class MACRO_VRNN(nn.Module):
         out2["L_kl"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         out["L_rec"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         out["e_pos"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         out["pulse_flag"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         out2["e_vel"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         out2["e_acc"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         out2["e_jrk"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         out2["e_pmax"] = (
-            torch.zeros(
-                n_sample, batchSize, len_time
-            ).to(device)
+            torch.zeros(n_sample, batchSize, len_time).to(device)
             if len_time == burn_in
             else torch.zeros(
                 n_sample,
@@ -2035,9 +1379,7 @@ class MACRO_VRNN(nn.Module):
             ).to(device)
         )
         out2["e_vmax"] = (
-            torch.zeros(
-                n_sample, batchSize, len_time
-            ).to(device)
+            torch.zeros(n_sample, batchSize, len_time).to(device)
             if len_time == burn_in
             else torch.zeros(
                 n_sample,
@@ -2046,9 +1388,7 @@ class MACRO_VRNN(nn.Module):
             ).to(device)
         )
         out2["e_amax"] = (
-            torch.zeros(
-                n_sample, batchSize, len_time
-            ).to(device)
+            torch.zeros(n_sample, batchSize, len_time).to(device)
             if len_time == burn_in
             else torch.zeros(
                 n_sample,
@@ -2060,9 +1400,7 @@ class MACRO_VRNN(nn.Module):
             out2["att"] = (
                 torch.zeros(n_sample).to(device)
                 if not TEST
-                else torch.zeros(
-                    n_sample, batchSize
-                ).to(device)
+                else torch.zeros(n_sample, batchSize).to(device)
             )
         acc = self.params["acc"]
         body = self.params["body"]
@@ -2070,31 +1408,23 @@ class MACRO_VRNN(nn.Module):
         out2["L_vel"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         out2["L_acc"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         # if body:
         out2["L_jrk"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
         out2["a_acc"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
-            else torch.zeros(
-                n_sample, batchSize
-            ).to(device)
+            else torch.zeros(n_sample, batchSize).to(device)
         )
 
         Sum = True if not TEST else False
@@ -2106,18 +1436,14 @@ class MACRO_VRNN(nn.Module):
         fs = self.params["fs"]  # added
         x_dim = self.params["x_dim"]
 
-        macro_single = get_macro_ohe(
-            macro, n_agents, self.params["m_dim"]
-        )
+        macro_single = get_macro_ohe(macro, n_agents, self.params["m_dim"])
         if self.macro:
             h_macro = [
                 [
                     torch.zeros(
                         self.params["n_layers"],
                         batchSize,
-                        self.params[
-                            "rnn_macro_dim"
-                        ],
+                        self.params["rnn_macro_dim"],
                     )
                     for _ in range(n_sample)
                 ]
@@ -2132,10 +1458,7 @@ class MACRO_VRNN(nn.Module):
         else:
             macro_intents = []
             m_t = [
-                torch.zeros(batchSize, 0).to(
-                    device
-                )
-                for i in range(n_agents)
+                torch.zeros(batchSize, 0).to(device) for i in range(n_agents)
             ]
             h_macro = [
                 [
@@ -2174,129 +1497,62 @@ class MACRO_VRNN(nn.Module):
 
         if self.params["cuda"]:
             if self.macro:
-                macro_intents = (
-                    macro_intents.cuda()
-                )
+                macro_intents = macro_intents.cuda()
                 macro_single = macro_single.cuda()
 
             # soft_att = soft_att.cuda()
             hard_att = hard_att.cuda()
             states = cudafy_list(states)
             for i in range(n_agents):
-                h_micro[i] = cudafy_list(
-                    h_micro[i]
-                )
-                self.gru_micro[
-                    i
-                ] = self.gru_micro[i].to(device)
+                h_micro[i] = cudafy_list(h_micro[i])
+                self.gru_micro[i] = self.gru_micro[i].to(device)
                 if self.macro:
-                    h_macro[i] = cudafy_list(
-                        h_macro[i]
-                    )
-                    self.gru_macro[
-                        i
-                    ] = self.gru_macro[i].to(
-                        device
-                    )
-                    self.dec_macro[
-                        i
-                    ] = self.dec_macro[i].to(
-                        device
-                    )
+                    h_macro[i] = cudafy_list(h_macro[i])
+                    self.gru_macro[i] = self.gru_macro[i].to(device)
+                    self.dec_macro[i] = self.dec_macro[i].to(device)
 
-                self.enc_ind[i] = self.enc_ind[
-                    i
-                ].to(device)
-                self.enc[i] = self.enc[i].to(
-                    device
-                )
-                self.enc_mean[i] = self.enc_mean[
-                    i
-                ].to(device)
-                self.enc_std[i] = self.enc_std[
-                    i
-                ].to(device)
-                self.prior[i] = self.prior[i].to(
-                    device
-                )
-                self.prior_mean[
-                    i
-                ] = self.prior_mean[i].to(device)
-                self.prior_std[
-                    i
-                ] = self.prior_std[i].to(device)
-                self.dec[i] = self.dec[i].to(
-                    device
-                )
-                self.dec_std[i] = self.dec_std[
-                    i
-                ].to(device)
-                self.dec_mean[i] = self.dec_mean[
-                    i
-                ].to(device)
-                self.dec_pulse[
-                    i
-                ] = self.dec_pulse[i].to(device)
+                self.enc_ind[i] = self.enc_ind[i].to(device)
+                self.enc[i] = self.enc[i].to(device)
+                self.enc_mean[i] = self.enc_mean[i].to(device)
+                self.enc_std[i] = self.enc_std[i].to(device)
+                self.prior[i] = self.prior[i].to(device)
+                self.prior_mean[i] = self.prior_mean[i].to(device)
+                self.prior_std[i] = self.prior_std[i].to(device)
+                self.dec[i] = self.dec[i].to(device)
+                self.dec_std[i] = self.dec_std[i].to(device)
+                self.dec_mean[i] = self.dec_mean[i].to(device)
+                self.dec_pulse[i] = self.dec_pulse[i].to(device)
 
                 if self.batchnorm:
-                    self.bn_enc[i] = self.bn_enc[
-                        i
-                    ].to(device)
-                    self.bn_prior[
-                        i
-                    ] = self.bn_prior[i].to(
-                        device
-                    )
-                    self.bn_dec[i] = self.bn_dec[
-                        i
-                    ].to(device)
+                    self.bn_enc[i] = self.bn_enc[i].to(device)
+                    self.bn_prior[i] = self.bn_prior[i].to(device)
+                    self.bn_dec[i] = self.bn_dec[i].to(device)
 
-        states_n = [
-            states.clone()
-            for _ in range(n_sample)
-        ]
+        states_n = [states.clone() for _ in range(n_sample)]
 
         for t in range(len_time):
             for n in range(n_sample):
                 if self.macro:
                     if t < burn_in:
-                        m_t = macro_single[
-                            t
-                        ].clone()  # (agents,batch,one-hot)
+                        m_t = macro_single[t].clone()  # (agents,batch,one-hot)
 
                     if not self.indep:
                         for i in range(n_agents):
                             if t >= burn_in:
-                                y_t = states_n[n][
-                                    t
-                                ][i].clone()
-                                pos_t = self.state2pva(
-                                    y_t, 1
-                                )
+                                y_t = states_n[n][t][i].clone()
+                                pos_t = self.state2pva(y_t, 1)
 
-                                dec_macro_t = self.dec_macro[
-                                    i
-                                ](
+                                dec_macro_t = self.dec_macro[i](
                                     torch.cat(
                                         [
                                             pos_t,
-                                            h_macro[
-                                                i
-                                            ][
-                                                n
-                                            ][
-                                                -1
-                                            ],
+                                            h_macro[i][n][-1],
                                         ],
                                         1,
                                     )
                                 )
-                                m_t[
-                                    i
-                                ] = sample_multinomial(
-                                    torch.exp(
-                                        dec_macro_t
-                                    )
+                                m_t[i] = sample_multinomial(
+                                    torch.exp(dec_macro_t)
                                 )
                                 del y_t, pos_t
 
@@ -2304,110 +1560,69 @@ class MACRO_VRNN(nn.Module):
                                 _,
                                 h_macro[i][n],
                             ) = self.gru_macro[i](
-                                torch.cat(
-                                    [m_t[i]], 1
-                                ).unsqueeze(0),
+                                torch.cat([m_t[i]], 1).unsqueeze(0),
                                 h_macro[i][n],
                             )
 
-                        macro_intents[
-                            t, :, :, n
-                        ] = torch.max(m_t, 2)[
+                        macro_intents[t, :, :, n] = torch.max(m_t, 2)[
                             1
-                        ].transpose(
-                            0, 1
-                        )
+                        ].transpose(0, 1)
 
-                prediction_all = torch.zeros(
-                    batchSize, n_agents, x_dim
-                )
+                prediction_all = torch.zeros(batchSize, n_agents, x_dim)
                 for i in range(n_agents):
-                    y_t = states_n[n][t][
-                        i
-                    ].clone()
+                    y_t = states_n[n][t][i].clone()
 
                     if self.in_out:
-                        x_t0 = states[t + 1][
-                            i
-                        ].clone()  # pos, vel, acc
+                        x_t0 = states[t + 1][i].clone()  # pos, vel, acc
                     elif self.dataset == "bat":
                         if self.in_sma:  # 2dim
-                            x_t0 = states[t + 1][
-                                i
-                            ][
+                            x_t0 = states[t + 1][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
-                            next_pulse = states[
-                                t + 1
-                            ][i][
+                            next_pulse = states[t + 1][i][
                                 :, n_feat * i + 5
                             ].clone()
                             x_t0_with_pulse = torch.cat(
                                 (
                                     x_t0,
-                                    next_pulse.reshape(
-                                        -1, 1
-                                    ),
+                                    next_pulse.reshape(-1, 1),
                                 ),
                                 dim=1,
                             )
                         else:  # 3dim
-                            x_t0 = states[t + 1][
-                                i
-                            ][
+                            x_t0 = states[t + 1][i][
                                 :,
-                                n_feat * i
-                                + 3 : n_feat * i
-                                + 6,
+                                n_feat * i + 3 : n_feat * i + 6,
                             ].clone()
-                            next_pulse = states[
-                                t + 1
-                            ][i][
+                            next_pulse = states[t + 1][i][
                                 :, n_feat * i + 8
                             ].clone()
                     elif n_feat < 10:
                         x_t0 = states[t + 1][i][
                             :,
-                            n_feat
-                            * i : n_feat
-                            * i
-                            + n_feat,
+                            n_feat * i : n_feat * i + n_feat,
                         ].clone()
                     elif n_feat == 13:
                         x_t0 = states[t + 1][i][
                             :,
-                            n_feat * i
-                            + 3 : n_feat * i
-                            + x_dim
-                            + 5,
+                            n_feat * i + 3 : n_feat * i + x_dim + 5,
                         ].clone()
                     elif n_feat == 15:
                         x_t0 = states[t + 1][i][
                             :,
-                            n_feat * i
-                            + 3 : n_feat * i
-                            + x_dim
-                            + 7,
+                            n_feat * i + 3 : n_feat * i + x_dim + 7,
                         ].clone()  # pos, vel, acc
 
                     # action
                     if self.dataset == "bat":
-                        x_t = x_t0[
-                            :, :
-                        ]  # vel 3dim
+                        x_t = x_t0[:, :]  # vel 3dim
                     elif acc == 0:
                         x_t = x_t0[:, 2:4]  # vel
                     elif acc == 1:
-                        x_t = x_t0[
-                            :, 0:4
-                        ]  # pos,vel
+                        x_t = x_t0[:, 0:4]  # pos,vel
                     elif acc == 2:
-                        x_t = x_t0[
-                            :, 2:6
-                        ]  # vel,acc
+                        x_t = x_t0[:, 2:6]  # vel,acc
                     elif acc == 3:
                         x_t = x_t0[:, 0:6]
                     elif acc == 4:
@@ -2420,22 +1635,16 @@ class MACRO_VRNN(nn.Module):
                         if self.in_sma:  # 2dim
                             current_pos = y_t[
                                 :,
-                                n_feat
-                                * i : n_feat
-                                * i
-                                + 2,
+                                n_feat * i : n_feat * i + 2,
                             ]
                             current_vel = y_t[
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ]
                             flag_pulse = (
                                 y_t[
                                     :,
-                                    n_feat * i
-                                    + 5,
+                                    n_feat * i + 5,
                                 ]
                                 .clone()
                                 .reshape(-1, 1)
@@ -2448,146 +1657,83 @@ class MACRO_VRNN(nn.Module):
                                 dim=1,
                             )
                             v0_t1 = x_t0
-                            v0_t2 = states[t + 2][
-                                i
-                            ][
+                            v0_t2 = states[t + 2][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
-                            a0_t1 = (
-                                v0_t2 - v0_t1
-                            ) / fs
+                            a0_t1 = (v0_t2 - v0_t1) / fs
                         else:  # 3dim
                             current_pos = y_t[
                                 :,
-                                n_feat
-                                * i : n_feat
-                                * i
-                                + 3,
+                                n_feat * i : n_feat * i + 3,
                             ]
                             current_vel = y_t[
                                 :,
-                                n_feat * i
-                                + 3 : n_feat * i
-                                + 6,
+                                n_feat * i + 3 : n_feat * i + 6,
                             ]
                             v0_t1 = x_t0
-                            v0_t2 = states[t + 2][
-                                i
-                            ][
+                            v0_t2 = states[t + 2][i][
                                 :,
-                                n_feat * i
-                                + 3 : n_feat * i
-                                + 6,
+                                n_feat * i + 3 : n_feat * i + 6,
                             ].clone()
-                            a0_t1 = (
-                                v0_t2 - v0_t1
-                            ) / fs
+                            a0_t1 = (v0_t2 - v0_t1) / fs
                     elif self.in_sma:
                         current_pos = y_t[
                             :,
-                            n_feat
-                            * i : n_feat
-                            * i
-                            + 2,
+                            n_feat * i : n_feat * i + 2,
                         ]
                         p0_t2 = states[t + 2][i][
                             :,
-                            n_feat
-                            * i : n_feat
-                            * i
-                            + 2,
+                            n_feat * i : n_feat * i + 2,
                         ].clone()
                         if acc >= 0:
                             current_vel = y_t[
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ]
                             v0_t1 = x_t0[:, 2:4]
-                            v0_t2 = states[t + 2][
-                                i
-                            ][
+                            v0_t2 = states[t + 2][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
 
                             if acc >= 2:
                                 current_acc = y_t[
                                     :,
-                                    n_feat * i
-                                    + 4 : n_feat
-                                    * i
-                                    + 6,
+                                    n_feat * i + 4 : n_feat * i + 6,
                                 ]
-                                a0_t1 = x_t0[
-                                    :, 4:6
-                                ]
+                                a0_t1 = x_t0[:, 4:6]
                             else:
-                                current_acc = (
-                                    x_t0[:, 2:4]
-                                    - current_vel
-                                ) / fs
-                                a0_t1 = (
-                                    v0_t2 - v0_t1
-                                ) / fs
+                                current_acc = (x_t0[:, 2:4] - current_vel) / fs
+                                a0_t1 = (v0_t2 - v0_t1) / fs
 
                         elif acc == -1:
-                            current_vel = (
-                                x_t0 - current_pos
-                            ) / fs
-                            p0_t3 = states[t + 3][
-                                i
-                            ][
+                            current_vel = (x_t0 - current_pos) / fs
+                            p0_t3 = states[t + 3][i][
                                 :,
-                                n_feat
-                                * i : n_feat
-                                * i
-                                + 2,
+                                n_feat * i : n_feat * i + 2,
                             ].clone()
-                            v0_t2 = (
-                                p0_t3 - p0_t2
-                            ) / fs
-                            v0_t1 = (
-                                p0_t2 - x_t0
-                            ) / fs
+                            v0_t2 = (p0_t3 - p0_t2) / fs
+                            v0_t1 = (p0_t2 - x_t0) / fs
 
-                            a0_t1 = (
-                                v0_t2 - v0_t1
-                            ) / fs
-                            current_acc = (
-                                v0_t1
-                                - current_vel
-                            ) / fs
+                            a0_t1 = (v0_t2 - v0_t1) / fs
+                            current_acc = (v0_t1 - current_vel) / fs
                     elif self.in_out:
                         current_pos = y_t[:, 0:2]
                         current_vel = y_t[:, 2:4]
-                        v0_t2 = states[t + 2][i][
-                            :, 2:4
-                        ].clone()
+                        v0_t2 = states[t + 2][i][:, 2:4].clone()
                     else:
                         current_pos = y_t[
                             :,
-                            n_feat * i
-                            + 3 : n_feat * i
-                            + 5,
+                            n_feat * i + 3 : n_feat * i + 5,
                         ]
                         current_vel = y_t[
                             :,
-                            n_feat * i
-                            + 5 : n_feat * i
-                            + 7,
+                            n_feat * i + 5 : n_feat * i + 7,
                         ]
                         v0_t2 = states[t + 2][i][
                             :,
-                            n_feat * i
-                            + 5 : n_feat * i
-                            + 7,
+                            n_feat * i + 5 : n_feat * i + 7,
                         ].clone()
 
                     if self.in_state0:
@@ -2612,9 +1758,7 @@ class MACRO_VRNN(nn.Module):
                                 1,
                             )
                         elif acc == 4:
-                            state_in0 = (
-                                current_acc
-                            )
+                            state_in0 = current_acc
                         elif acc == 2:
                             state_in0 = torch.cat(
                                 [
@@ -2624,27 +1768,17 @@ class MACRO_VRNN(nn.Module):
                                 1,
                             )
                         elif acc == 0:
-                            state_in0 = (
-                                current_vel
-                            )
+                            state_in0 = current_vel
                         elif acc == -1:
-                            state_in0 = (
-                                current_pos
-                            )
+                            state_in0 = current_pos
                     else:
-                        state_in0 = torch.zeros(
-                            batchSize, 0
-                        ).to(device)
+                        state_in0 = torch.zeros(batchSize, 0).to(device)
 
                     # attention
-                    if (
-                        self.attention >= 1
-                    ):  # individual
+                    if self.attention >= 1:  # individual
                         (
                             _,
-                            hard_att[
-                                t, i, :, :, n
-                            ],
+                            hard_att[t, i, :, :, n],
                             ind_embed,
                             dec_macro_t,
                         ) = self.func_attention(
@@ -2655,36 +1789,23 @@ class MACRO_VRNN(nn.Module):
                             Sample=False,
                             macro=(self.macro),
                         )  # soft_att[t,i,:,:,n]
-                        if (
-                            self.indep
-                            and self.macro
-                        ):
+                        if self.indep and self.macro:
                             if t >= burn_in:
-                                m_t[
-                                    i
-                                ] = sample_multinomial(
-                                    torch.exp(
-                                        dec_macro_t
-                                    )
+                                m_t[i] = sample_multinomial(
+                                    torch.exp(dec_macro_t)
                                 )
 
                             (
                                 _,
                                 h_macro[i][n],
                             ) = self.gru_macro[i](
-                                torch.cat(
-                                    [m_t[i]], 1
-                                ).unsqueeze(0),
+                                torch.cat([m_t[i]], 1).unsqueeze(0),
                                 h_macro[i][n],
                             )
 
-                        if (
-                            self.attention == 3
-                        ):  # hard
+                        if self.attention == 3:  # hard
                             if CF_pred:
-                                hard_att[
-                                    t, i, :, :, n
-                                ] = self.CF_oneHot(
+                                hard_att[t, i, :, :, n] = self.CF_oneHot(
                                     y_t,
                                     hard_att[
                                         t,
@@ -2700,9 +1821,7 @@ class MACRO_VRNN(nn.Module):
                                 )
                                 # hard_att[t,i,:,:,n] = self.CF_farthest(y_t,hard_att[t,i,:,:,n],n_feat,n_all_agents,batchSize,i)
                             if not TEST:
-                                out2["att"][
-                                    n
-                                ] += torch.sum(
+                                out2["att"][n] += torch.sum(
                                     hard_att[
                                         t,
                                         i,
@@ -2712,9 +1831,7 @@ class MACRO_VRNN(nn.Module):
                                     ]
                                 )  # /(n_all_agents+1)
                             else:
-                                out2["att"][
-                                    n
-                                ] += torch.sum(
+                                out2["att"][n] += torch.sum(
                                     hard_att[
                                         t,
                                         i,
@@ -2726,33 +1843,23 @@ class MACRO_VRNN(nn.Module):
                                 )  # /(n_all_agents+1)
                             state_in = self.multiply_attention(
                                 ind_embed,
-                                hard_att[
-                                    t, i, :, :, n
-                                ],
+                                hard_att[t, i, :, :, n],
                                 device,
                                 batchSize,
                                 n_all_agents,
                             )
 
-                        elif (
-                            self.attention >= 1
-                        ):  # soft
+                        elif self.attention >= 1:  # soft
                             state_in = self.multiply_attention(
                                 ind_embed,
-                                soft_att[
-                                    t, i, :, :, n
-                                ],
+                                soft_att[t, i, :, :, n],
                                 device,
                                 batchSize,
                                 n_all_agents,
                             )
                         del ind_embed
-                    elif (
-                        self.attention == 0
-                    ):  # w/ whole embedding
-                        state_in = self.enc_ind[
-                            i
-                        ](y_t)
+                    elif self.attention == 0:  # w/ whole embedding
+                        state_in = self.enc_ind[i](y_t)
 
                     elif (
                         self.attention == -1
@@ -2768,9 +1875,7 @@ class MACRO_VRNN(nn.Module):
                         ],
                         1,
                     )
-                    if (
-                        False
-                    ):  # acc == -1: #  and self.body_pretrain:
+                    if False:  # acc == -1: #  and self.body_pretrain:
                         enc_in = torch.cat(
                             [
                                 x_t,
@@ -2789,25 +1894,13 @@ class MACRO_VRNN(nn.Module):
                             1,
                         )
 
-                    prior_t = self.prior[i](
-                        prior_in
-                    )
+                    prior_t = self.prior[i](prior_in)
                     if self.batchnorm:
-                        prior_t = self.bn_prior[
-                            i
-                        ](prior_t)
-                    prior_mean_t = (
-                        self.prior_mean[i](
-                            prior_t
-                        )
-                    )
-                    prior_std_t = self.prior_std[
-                        i
-                    ](prior_t)
+                        prior_t = self.bn_prior[i](prior_t)
+                    prior_mean_t = self.prior_mean[i](prior_t)
+                    prior_std_t = self.prior_std[i](prior_t)
 
-                    z_t = sample_gauss(
-                        prior_mean_t, prior_std_t
-                    )
+                    z_t = sample_gauss(prior_mean_t, prior_std_t)
 
                     dec_t = self.dec[i](
                         torch.cat(
@@ -2822,51 +1915,30 @@ class MACRO_VRNN(nn.Module):
                         )
                     )
                     if self.batchnorm:
-                        dec_t = self.bn_dec[i](
-                            dec_t
-                        )
+                        dec_t = self.bn_dec[i](dec_t)
 
-                    dec_mean_t = self.dec_mean[i](
-                        dec_t
-                    )
+                    dec_mean_t = self.dec_mean[i](dec_t)
                     if self.res:
                         if acc == 3:
-                            dec_mean_t[
-                                :, 4:6
-                            ] += state_in0[:, 4:6]
+                            dec_mean_t[:, 4:6] += state_in0[:, 4:6]
                         elif acc == -1:
-                            dec_mean_t += (
-                                state_in0
-                            )
+                            dec_mean_t += state_in0
                     if not self.fixedsigma:
-                        dec_std_t = self.dec_std[
-                            i
-                        ](dec_t)
+                        dec_std_t = self.dec_std[i](dec_t)
                     else:
-                        dec_std_t = (
-                            self.fixedsigma**2
-                            * torch.ones(
-                                dec_mean_t.shape
-                            ).to(device)
-                        )
-                    dec_pulse_t = self.dec_pulse[
-                        i
-                    ](dec_t)
+                        dec_std_t = self.fixedsigma**2 * torch.ones(
+                            dec_mean_t.shape
+                        ).to(device)
+                    dec_pulse_t = self.dec_pulse[i](dec_t)
                     # objective function
                     # pulse_loss = nn.BCELoss()
                     pulse_loss = nn.MSELoss()
                     # for evaluation only
                     enc_t = self.enc[i](enc_in)
                     if self.batchnorm:
-                        enc_t = self.bn_enc[i](
-                            enc_t
-                        )
-                    enc_mean_t = self.enc_mean[i](
-                        enc_t
-                    )
-                    enc_std_t = self.enc_std[i](
-                        enc_t
-                    )
+                        enc_t = self.bn_enc[i](enc_t)
+                    enc_mean_t = self.enc_mean[i](enc_t)
+                    enc_std_t = self.enc_std[i](enc_t)
                     out2["L_kl"][n] += kld_gauss(
                         enc_mean_t,
                         enc_std_t,
@@ -2875,67 +1947,39 @@ class MACRO_VRNN(nn.Module):
                         Sum,
                     )
                     if acc == -1:
-                        out["L_rec"][
-                            n
-                        ] += nll_gauss(
+                        out["L_rec"][n] += nll_gauss(
                             dec_mean_t[:, :2],
                             dec_std_t[:, :2],
                             torch.cat([x_t], 1),
                         )
                     else:
-                        out["L_rec"][
-                            n
-                        ] += nll_gauss(
+                        out["L_rec"][n] += nll_gauss(
                             dec_mean_t,
                             dec_std_t,
                             x_t,
                             Sum,
                         )
-                    out[
-                        "pulse_flag"
-                    ] += pulse_loss(
-                        dec_pulse_t.reshape(
-                            1, -1
-                        )[0],
-                        next_pulse.reshape(1, -1)[
-                            0
-                        ],
+                    out["pulse_flag"] += pulse_loss(
+                        dec_pulse_t.reshape(1, -1)[0],
+                        next_pulse.reshape(1, -1)[0],
                     )
                     # body constraint
                     # acc
                     if self.dataset == "bat":
                         v_t1 = dec_mean_t[:, :2]
-                        next_pos = (
-                            current_pos
-                            + v_t1 * fs
-                        )
+                        next_pos = current_pos + v_t1 * fs
                     elif acc == 1 or acc == 3:
                         v_t1 = dec_mean_t[:, 2:4]
-                        next_pos = dec_mean_t[
-                            :, :2
-                        ]
+                        next_pos = dec_mean_t[:, :2]
                     elif acc == 4:
-                        v_t1 = (
-                            current_vel
-                            + current_acc * fs
-                        )
-                        next_pos = (
-                            current_pos
-                            + current_vel * fs
-                        )
+                        v_t1 = current_vel + current_acc * fs
+                        next_pos = current_pos + current_vel * fs
                     elif acc == 0 or acc == 2:
                         v_t1 = dec_mean_t[:, :2]
-                        next_pos = (
-                            current_pos
-                            + current_vel * fs
-                        )
+                        next_pos = current_pos + current_vel * fs
                     elif acc == -1:
-                        next_pos = dec_mean_t[
-                            :, :2
-                        ]
-                        v_t1 = (
-                            p0_t2 - next_pos
-                        ) / fs
+                        next_pos = dec_mean_t[:, :2]
+                        v_t1 = (p0_t2 - next_pos) / fs
 
                     if self.dataset == "bat":
                         a_t1 = (v0_t2 - v_t1) / fs
@@ -2951,256 +1995,149 @@ class MACRO_VRNN(nn.Module):
                         a_t1 = (v0_t2 - v_t1) / fs
 
                     if acc == 3:
-                        out2["L_vel"][
-                            n
-                        ] += batch_error(
+                        out2["L_vel"][n] += batch_error(
                             v_t1,
-                            (p0_t2 - next_pos)
-                            / fs,
+                            (p0_t2 - next_pos) / fs,
                             Sum,
                         )
-                        out2["L_acc"][
-                            n
-                        ] += batch_error(
+                        out2["L_acc"][n] += batch_error(
                             a_t1,
                             (v0_t2 - v_t1) / fs,
                             Sum,
                         )
                     if acc == 4:
-                        out2["L_vel"][
-                            n
-                        ] += batch_error(
+                        out2["L_vel"][n] += batch_error(
                             next_pos,
                             x_t0[:, :2],
                             Sum,
                         )
-                        out2["L_acc"][
-                            n
-                        ] += batch_error(
+                        out2["L_acc"][n] += batch_error(
                             a_t1,
                             (v0_t2 - v_t1) / fs,
                             Sum,
                         )
                     elif acc == 2:
                         if t > 0:
-                            out2["L_vel"][
-                                n
-                            ] += nll_gauss(
-                                current_pos
-                                + dec_mean_t0[
-                                    :, 0:2
-                                ]
-                                * fs,
-                                dec_std_t0[:, 0:2]
-                                * fs,
+                            out2["L_vel"][n] += nll_gauss(
+                                current_pos + dec_mean_t0[:, 0:2] * fs,
+                                dec_std_t0[:, 0:2] * fs,
                                 next_pos,
                                 Sum,
                             )
-                        out2["L_acc"][
-                            n
-                        ] += kld_gauss(
+                        out2["L_acc"][n] += kld_gauss(
                             a_t1,
                             dec_std_t[:, 2:4],
                             (v0_t2 - v_t1) / fs,
-                            dec_std_t[:, 0:2]
-                            / fs,
+                            dec_std_t[:, 0:2] / fs,
                             Sum,
                         )
                     elif acc == 0:
-                        out2["L_vel"][
-                            n
-                        ] += batch_error(
+                        out2["L_vel"][n] += batch_error(
                             next_pos,
                             x_t0[:, :2],
                             Sum,
                         )
-                        out2["L_acc"][
-                            n
-                        ] += batch_error(
-                            a0_t1, a_t1, Sum
-                        )
+                        out2["L_acc"][n] += batch_error(a0_t1, a_t1, Sum)
                     else:
-                        out2["L_vel"][
-                            n
-                        ] += batch_error(
-                            v_t1, v0_t1, Sum
-                        )  # vel
-                        out2["L_acc"][
-                            n
-                        ] += batch_error(
-                            a0_t1, a_t1, Sum
-                        )
+                        out2["L_vel"][n] += batch_error(v_t1, v0_t1, Sum)  # vel
+                        out2["L_acc"][n] += batch_error(a0_t1, a_t1, Sum)
                     # jerk
                     if self.dataset == "bat":
                         if self.in_sma:  # 2dim
-                            v0_t3 = states[t + 3][
-                                i
-                            ][
+                            v0_t3 = states[t + 3][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
-                            a_t2 = (
-                                v0_t3 - v0_t2
-                            ) / fs
+                            a_t2 = (v0_t3 - v0_t2) / fs
                         else:
-                            v0_t3 = states[t + 3][
-                                i
-                            ][
+                            v0_t3 = states[t + 3][i][
                                 :,
-                                n_feat * i
-                                + 3 : n_feat * i
-                                + 6,
+                                n_feat * i + 3 : n_feat * i + 6,
                             ].clone()
-                            a_t2 = (
-                                v0_t3 - v0_t2
-                            ) / fs
+                            a_t2 = (v0_t3 - v0_t2) / fs
                     elif n_feat == 15:
                         a_t2 = states[t + 2][i][
                             :,
-                            n_feat * i
-                            + 7 : n_feat * i
-                            + 9,
+                            n_feat * i + 7 : n_feat * i + 9,
                         ].clone()
                     elif n_feat == 6:
                         a_t2 = states[t + 2][i][
                             :,
-                            n_feat * i
-                            + 4 : n_feat * i
-                            + 6,
+                            n_feat * i + 4 : n_feat * i + 6,
                         ].clone()
                     elif n_feat == 4:
                         if acc >= 0:
-                            v0_t3 = states[t + 3][
-                                i
-                            ][
+                            v0_t3 = states[t + 3][i][
                                 :,
-                                n_feat * i
-                                + 2 : n_feat * i
-                                + 4,
+                                n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
-                            a_t2 = (
-                                v0_t3 - v0_t2
-                            ) / fs
+                            a_t2 = (v0_t3 - v0_t2) / fs
                     elif n_feat == 2:
                         p0_t4 = states[t + 4][i][
                             :,
-                            n_feat
-                            * i : n_feat
-                            * i
-                            + 2,
+                            n_feat * i : n_feat * i + 2,
                         ].clone()
-                        v0_t3 = (
-                            p0_t4 - p0_t3
-                        ) / fs
-                        a_t2 = (
-                            v0_t3 - v0_t2
-                        ) / fs
+                        v0_t3 = (p0_t4 - p0_t3) / fs
+                        a_t2 = (v0_t3 - v0_t2) / fs
 
                     if acc == 2:
-                        out2["L_jrk"][
-                            n
-                        ] += nll_gauss(
+                        out2["L_jrk"][n] += nll_gauss(
                             a_t1,
                             dec_std_t[:, 2:],
                             a_t2,
                             Sum,
                         )
                     elif acc == 3:
-                        out2["L_jrk"][
-                            n
-                        ] += nll_gauss(
+                        out2["L_jrk"][n] += nll_gauss(
                             a_t1,
                             dec_std_t[:, 4:],
                             a_t2,
                             Sum,
                         )
                     else:
-                        out2["L_jrk"][
-                            n
-                        ] += batch_error(
-                            a_t1, a_t2, Sum
-                        )
+                        out2["L_jrk"][n] += batch_error(a_t1, a_t2, Sum)
 
-                    if (
-                        t >= burn_in
-                        or burn_in == len_time
-                    ):  # and not CF_pred:
+                    if t >= burn_in or burn_in == len_time:  # and not CF_pred:
                         # prediction
-                        prediction_all[
-                            :, i, :2
-                        ] = dec_mean_t[
-                            :, : x_dim - 1
-                        ]
-                        prediction_all[
-                            :, i, 2
-                        ] = dec_pulse_t.reshape(
-                            1, -1
-                        )[
-                            0
-                        ]
+                        prediction_all[:, i, :2] = dec_mean_t[:, : x_dim - 1]
+                        prediction_all[:, i, 2] = dec_pulse_t.reshape(1, -1)[0]
 
                         # error (not used when backward)
-                        out["e_pos"][
-                            n
-                        ] += batch_error(
+                        out["e_pos"][n] += batch_error(
                             next_pos,
                             x_t0[:, :2],
                             Sum,
                         )
-                        out2["e_vel"][
-                            n
-                        ] += batch_error(
-                            v_t1, v0_t1, Sum
-                        )
+                        out2["e_vel"][n] += batch_error(v_t1, v0_t1, Sum)
 
                         if burn_in == len_time:
-                            out2["e_pmax"][
-                                n, :, t
-                            ] += batch_error(
+                            out2["e_pmax"][n, :, t] += batch_error(
                                 next_pos,
                                 x_t0[:, :2],
                                 Sum=False,
                             )
                             # TBD
                         else:
-                            out2["e_pmax"][
-                                n, :, t - burn_in
-                            ] += batch_error(
+                            out2["e_pmax"][n, :, t - burn_in] += batch_error(
                                 next_pos,
                                 x_t0[:, :2],
                                 Sum=False,
                             )
-                            out2["e_vmax"][
-                                n, :, t - burn_in
-                            ] += batch_error(
+                            out2["e_vmax"][n, :, t - burn_in] += batch_error(
                                 v_t1,
                                 v0_t1,
                                 Sum=False,
                             )
-                            out2["e_amax"][
-                                n, :, t - burn_in
-                            ] += batch_error(
+                            out2["e_amax"][n, :, t - burn_in] += batch_error(
                                 a_t1,
                                 a0_t1,
                                 Sum=False,
                             )
 
-                        out2["e_acc"][
-                            n
-                        ] += batch_error(
-                            a_t1, a0_t1, Sum
-                        )
-                        out2["e_jrk"][
-                            n
-                        ] += batch_error(
-                            a_t1, a_t2, Sum
-                        )
+                        out2["e_acc"][n] += batch_error(a_t1, a0_t1, Sum)
+                        out2["e_jrk"][n] += batch_error(a_t1, a_t2, Sum)
                         # if acc == 2 and body:
-                        out2["a_acc"][
-                            n
-                        ] += batch_error(
+                        out2["a_acc"][n] += batch_error(
                             a_t1,
                             [],
                             Sum,
@@ -3209,13 +2146,8 @@ class MACRO_VRNN(nn.Module):
 
                         # out['L_rec'][n] += out2['e_vel'][n] + out2['e_acc'][n]
 
-                        if (
-                            rollout
-                            and self.in_out
-                        ):  # for acc == 3, TBD
-                            states[n][t + 1][
-                                i
-                            ] = torch.cat(
+                        if rollout and self.in_out:  # for acc == 3, TBD
+                            states[n][t + 1][i] = torch.cat(
                                 [next_pos, v_t1],
                                 dim=1,
                             )
@@ -3232,9 +2164,7 @@ class MACRO_VRNN(nn.Module):
                         prior_in,
                     )
                     # update
-                    if (
-                        acc == 2
-                    ):  # and self.L_acc:
+                    if acc == 2:  # and self.L_acc:
                         dec_mean_t0 = dec_mean_t
                         dec_std_t0 = dec_std_t
                     del (
@@ -3271,39 +2201,22 @@ class MACRO_VRNN(nn.Module):
                     del x_t, z_t
 
                 if self.macro and self.indep:
-                    macro_intents[
-                        t, :, :, n
-                    ] = torch.max(m_t, 2)[
-                        1
-                    ].transpose(
+                    macro_intents[t, :, :, n] = torch.max(m_t, 2)[1].transpose(
                         0, 1
                     )
                 # role out
-                if (
-                    t >= burn_in
-                    and not self.in_out
-                ):  # rollout:
+                if t >= burn_in and not self.in_out:  # rollout:
                     for i in range(n_agents):
-                        y_t_pre = states_n[n][
-                            t - 1
-                        ][i].clone()
-                        y_t = states_n[n][t][
-                            i
-                        ].clone()  # state
-                        y_t1i = states[t + 1][
-                            i
-                        ].clone()
-                        states_n[n][t + 1][
-                            i
-                        ] = roll_out(
+                        y_t_pre = states_n[n][t - 1][i].clone()
+                        y_t = states_n[n][t][i].clone()  # state
+                        y_t1i = states[t + 1][i].clone()
+                        states_n[n][t + 1][i] = roll_out(
                             y_t_pre,
                             y_t,
                             y_t1i,
                             prediction_all,
                             acc,
-                            self.params[
-                                "normalize"
-                            ],
+                            self.params["normalize"],
                             n_agents,
                             n_feat,
                             ball_dim,
@@ -3313,16 +2226,12 @@ class MACRO_VRNN(nn.Module):
                         )
                         del y_t1i
         if self.macro:
-            macro_intents.data[
-                -1
-            ] = macro_intents.data[
+            macro_intents.data[-1] = macro_intents.data[
                 -2
             ]  # the last time step
         if burn_in == len_time:
             out["e_pos"] /= (len_time) * n_agents
-            out["pulse_flag"][n] /= (
-                len_time
-            ) * n_agents
+            out["pulse_flag"][n] /= (len_time) * n_agents
             out2["e_vel"] /= (len_time) * n_agents
             out2["e_acc"] /= (len_time) * n_agents
             out2["e_jrk"] /= (len_time) * n_agents
@@ -3332,22 +2241,12 @@ class MACRO_VRNN(nn.Module):
             # out2['e_pmax'] = torch.max(out2['e_pmax']/n_agents,dim=2)[0]
         else:
             for n in range(n_sample):
-                out["e_pos"][n] /= (
-                    len_time - burn_in
-                ) * n_agents
-                out2["e_vel"][n] /= (
-                    len_time - burn_in
-                ) * n_agents
-                out2["e_acc"][n] /= (
-                    len_time - burn_in
-                ) * n_agents
-                out2["e_jrk"][n] /= (
-                    len_time - burn_in
-                ) * n_agents
+                out["e_pos"][n] /= (len_time - burn_in) * n_agents
+                out2["e_vel"][n] /= (len_time - burn_in) * n_agents
+                out2["e_acc"][n] /= (len_time - burn_in) * n_agents
+                out2["e_jrk"][n] /= (len_time - burn_in) * n_agents
                 # if acc == 2 and body:
-                out2["a_acc"][n] /= (
-                    len_time - burn_in
-                ) * n_agents
+                out2["a_acc"][n] /= (len_time - burn_in) * n_agents
             if not TEST:  # validation
                 out2["e_pmax"] = torch.sum(
                     torch.max(
@@ -3382,26 +2281,14 @@ class MACRO_VRNN(nn.Module):
                 )[0]
 
         for n in range(n_sample):
-            out2["L_kl"][n] /= (
-                len_time
-            ) * n_agents
-            out["L_rec"][n] /= (
-                len_time
-            ) * n_agents
-            out2["L_jrk"][n] /= (
-                len_time
-            ) * n_agents
-            out2["L_vel"][n] /= (
-                len_time
-            ) * n_agents
-            out2["L_acc"][n] /= (
-                len_time
-            ) * n_agents
+            out2["L_kl"][n] /= (len_time) * n_agents
+            out["L_rec"][n] /= (len_time) * n_agents
+            out2["L_jrk"][n] /= (len_time) * n_agents
+            out2["L_vel"][n] /= (len_time) * n_agents
+            out2["L_acc"][n] /= (len_time) * n_agents
         if self.attention == 3:
             for n in range(n_sample):
-                out2["att"][n] /= (
-                    len_time
-                ) * n_agents
+                out2["att"][n] /= (len_time) * n_agents
 
         if n_sample > 1:
             states = states_n
@@ -3431,14 +2318,10 @@ class MACRO_VRNN(nn.Module):
             zeros = zeros.cuda()
 
         for batch in range(batchSize):
-            agentList = [
-                k for k in range(n_all_agents + 1)
-            ]
+            agentList = [k for k in range(n_all_agents + 1)]
             agentList.remove(i)
             att = hard_att[batch, :]
-            att = torch.cat(
-                [att[0:i], att[i + 1 :]]
-            )
+            att = torch.cat([att[0:i], att[i + 1 :]])
             _, ind = att.max(0)
             agentList.remove(agentList[ind])
             hard_att[batch][agentList] = zeros
@@ -3455,9 +2338,9 @@ class MACRO_VRNN(nn.Module):
         i,
     ):
         # set attention to the farthest agent to zero
-        new_matrix = y_t[
-            :, : n_all_agents * n_feat
-        ].reshape(batchSize, n_all_agents, n_feat)
+        new_matrix = y_t[:, : n_all_agents * n_feat].reshape(
+            batchSize, n_all_agents, n_feat
+        )
         zeros = torch.zeros(0)
         if self.params["cuda"]:
             zeros.cuda()
@@ -3471,13 +2354,9 @@ class MACRO_VRNN(nn.Module):
             )  # add the ball (zero)
             att = hard_att[batch, :]
             try:
-                farthest = distance[
-                    att > 0.99
-                ].max()
+                farthest = distance[att > 0.99].max()
             except:
                 _, ind = att.max(0)
                 farthest = distance[ind]
-            hard_att[batch][
-                distance == farthest
-            ] = zeros
+            hard_att[batch][distance == farthest] = zeros
         return hard_att

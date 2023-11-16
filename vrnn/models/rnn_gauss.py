@@ -437,7 +437,7 @@ class RNN_GAUSS(nn.Module):
             out2["e_vel"] /= (len_time - burn_in) * n_agents
             out2["e_acc"] /= (len_time - burn_in) * n_agents
             out2["e_jrk"] /= (len_time - burn_in) * n_agents
-
+        
         out["L_rec"] /= (len_time) * n_agents
         out["pulse_flag"] /= (len_time) * n_agents
         return out, out2

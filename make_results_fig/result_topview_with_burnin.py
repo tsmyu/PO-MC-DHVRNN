@@ -19,7 +19,7 @@ with open('./weights/sub100_filt_vel_meanHMM_inSimple_acc_0_unnorm/MACRO_VRNN_ba
 
 # import pdb; pdb.set_trace()
 
-pp = PdfPages('./teshima/result/pulse/topview.pdf')
+pp = PdfPages('./teshima/result/pulse/topview_vrnn.pdf')
 
 count = 0
 

@@ -1271,9 +1271,11 @@ class MACRO_VRNN(nn.Module):
                 # role out
                 if t >= burn_in and not self.in_out:  # if rollout:
                     for i in range(n_agents):
+                        y_t_pre = states[t - 1][i].clone()
                         y_t = states[t][i].clone()  # state
                         y_t1i = states[t + 1][i].clone()
                         states[t + 1][i] = roll_out(
+                            y_t_pre,
                             y_t,
                             y_t1i,
                             prediction_all,
@@ -1865,6 +1867,8 @@ class MACRO_VRNN(nn.Module):
                         self.attention == -1
                     ):  # w/o embedding and attention # or not self.indep
                         state_in = y_t  # torch.zeros(batchSize,0).to(device) #
+                        state_in.pop(7)
+                        state_in.pop(6)
 
                     prior_in = torch.cat(
                         [
@@ -2209,7 +2213,7 @@ class MACRO_VRNN(nn.Module):
                     for i in range(n_agents):
                         y_t_pre = states_n[n][t - 1][i].clone()
                         y_t = states_n[n][t][i].clone()  # state
-                        y_t1i = states[t + 1][i].clone()
+                        y_t1i = states_n[t + 1][i].clone()
                         states_n[n][t + 1][i] = roll_out(
                             y_t_pre,
                             y_t,

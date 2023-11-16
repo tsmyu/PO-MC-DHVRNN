@@ -47,19 +47,13 @@ def calc_obs_area(obs_point_dict):
     }
     for env in obs_point_dict.keys():
         if env == "wall":
-            obs_frame_x = [
-                obs_point_dict[env]["x"]
-            ]
-            obs_frame_y = [
-                obs_point_dict[env]["y"]
-            ]
+            obs_frame_x = [obs_point_dict[env]["x"]]
+            obs_frame_y = [obs_point_dict[env]["y"]]
         else:
             (
                 obs_frame_x,
                 obs_frame_y,
-            ) = calc_each_point(
-                obs_point_dict[env]
-            )
+            ) = calc_each_point(obs_point_dict[env])
         obs_area_dict[env]["x"] = obs_frame_x
         obs_area_dict[env]["y"] = obs_frame_y
 
@@ -139,24 +133,16 @@ def rotation(x: list, y: list):
     """
     座標を±40°回転
     """
-    rads = [
-        np.deg2rad(round(j * 0.1, 1))
-        for j in range(-400, 403, 3.2)
-    ]
+    rads = [np.deg2rad(round(j * 0.1, 1)) for j in range(-400, 403, 3.2)]
     rot_x = []
     rot_y = []
     length = 5
     for i in range(len(x) - 1):
-        theta = np.arctan2(
-            (y[i + 1] - y[i]), (x[i + 1] - x[i])
-        )
+        theta = np.arctan2((y[i + 1] - y[i]), (x[i + 1] - x[i]))
         rads += theta
         cos_list = np.cos(rads)
         sin_list = np.sin(rads)
-        r = np.sqrt(
-            (x[i + 1] - x[i]) ** 2
-            + (y[i + 1] - y[i]) ** 2
-        )
+        r = np.sqrt((x[i + 1] - x[i]) ** 2 + (y[i + 1] - y[i]) ** 2)
         # rot_x.append(((x[i+1] - x[i]) * cos_list) - ((y[i+1] - y[i]) * sin_list)+ x[i])
         # rot_y.append(((x[i+1] - x[i]) * sin_list) + ((y[i+1] - y[i]) * cos_list)+ y[i])
         rot_x.append(length * cos_list + x[i])
@@ -165,28 +151,18 @@ def rotation(x: list, y: list):
     return rot_x, rot_y
 
 
-def calc_cross_point(
-    x1, y1, x2, y2, x3, y3, x4, y4
-):
+def calc_cross_point(x1, y1, x2, y2, x3, y3, x4, y4):
     """
     交点を算出
     x1, y1, x2, y2:bat
     x3, y3, x4, y4:obs
     """
-    den = (x2 - x1) * (y4 - y3) - (y2 - y1) * (
-        x4 - x3
-    )
+    den = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3)
     if den == 0:
         dis_norm = np.nan
     else:  # https://www.hiramine.com/programming/graphics/2d_segmentintersection.html
-        r = (
-            (y4 - y3) * (x3 - x1)
-            - (x4 - x3) * (y3 - y1)
-        ) / den
-        s = (
-            (y2 - y1) * (x3 - x1)
-            - (x2 - x1) * (y3 - y1)
-        ) / den
+        r = ((y4 - y3) * (x3 - x1) - (x4 - x3) * (y3 - y1)) / den
+        s = ((y2 - y1) * (x3 - x1) - (x2 - x1) * (y3 - y1)) / den
 
         if 0 <= r <= 1 and 0 <= s <= 1:
             dis_norm = r
@@ -206,29 +182,17 @@ def cross_point(
     """
     交点までの距離を算出
     """
-    obs_x_list = (
-        obs_area_dict["wall"]["x"]
-        + obs_area_dict[env_name]["x"]
-    )
-    obs_y_list = (
-        obs_area_dict["wall"]["y"]
-        + obs_area_dict[env_name]["y"]
-    )
+    obs_x_list = obs_area_dict["wall"]["x"] + obs_area_dict[env_name]["x"]
+    obs_y_list = obs_area_dict["wall"]["y"] + obs_area_dict[env_name]["y"]
 
     cross_alldistance = []
-    for i, (x0, y0) in enumerate(
-        zip(x, y)
-    ):  ### bat position
+    for i, (x0, y0) in enumerate(zip(x, y)):  ### bat position
         cross_subdistance = []
         if i <= len(x) - 2:
-            for x1, y1 in zip(
-                rot_x[i], rot_y[i]
-            ):  ### 201
+            for x1, y1 in zip(rot_x[i], rot_y[i]):  ### 201
                 first_dis = 10
                 for j in range(len(obs_x_list)):
-                    for k in range(
-                        len(obs_x_list[0]) - 1
-                    ):
+                    for k in range(len(obs_x_list[0]) - 1):
                         x2 = obs_x_list[j][k]
                         y2 = obs_y_list[j][k]
                         x3 = obs_x_list[j][k + 1]
@@ -249,11 +213,7 @@ def cross_point(
                             pass
                 if first_dis == 10:
                     first_dis = 0
-                cross_subdistance.append(
-                    first_dis
-                )
-            cross_alldistance.append(
-                cross_subdistance
-            )
+                cross_subdistance.append(first_dis)
+            cross_alldistance.append(cross_subdistance)
 
     return cross_alldistance

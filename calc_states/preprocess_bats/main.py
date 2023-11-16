@@ -12,7 +12,7 @@ from preprocess_bats.calculation import (
     horizon_angle,
     vertical_angle,
     rotation,
-    cross_point
+    cross_point,
 )
 
 from preprocess_bats.cut_down import cut_for_episode, dwnsmp
@@ -111,13 +111,20 @@ def calc_rewards(indf):
 
 
 def preprocess_bat(input_data, episode_sec):
-    
     if os.path.isfile(f"{input_data}/status.pkl"):
-        with open(f"{input_data}/status.pkl", 'rb') as f:
+        with open(f"{input_data}/status.pkl", "rb") as f:
             states, actions, rewards, lengths, conditions, vel_abss = np.load(
-                f, allow_pickle=True)
+                f, allow_pickle=True
+            )
     else:
-        states, actions, rewards, lengths, conditions, vel_abss = [], [], [], [], [], []
+        states, actions, rewards, lengths, conditions, vel_abss = (
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+        )
         target_env_list = glob.glob(
             f"{input_data}/*"
         )  # target_data == "OneDrive - 同志社大学\源田会\data\藤井先生\ユビ\2023"　想定
@@ -147,11 +154,16 @@ def preprocess_bat(input_data, episode_sec):
                     lengths.append(length)
                     conditions.append(idx)
                     vel_abss.append(
-                        np.sqrt(np.array(Vx) ** 2 + np.array(Vy) ** 2 + np.array(Vz) ** 2)
+                        np.sqrt(
+                            np.array(Vx) ** 2
+                            + np.array(Vy) ** 2
+                            + np.array(Vz) ** 2
+                        )
                     )
                     print(f"finish {fname}")
         states_arr = np.array(states)
         import matplotlib.pyplot as plt
+
         plt.plot(states_arr[0][0])
         plt.savefig("tmp.png")
         cut_samples_len = episode_sec // dt
@@ -160,8 +172,12 @@ def preprocess_bat(input_data, episode_sec):
         rewards = cut_for_episode(rewards, cut_samples_len)
         vel_abss = cut_for_episode(vel_abss, cut_samples_len)
 
-        with open(f"{input_data}/status.pkl", 'wb') as f:
-            pickle.dump([states, actions, rewards, lengths, conditions, vel_abss], f, protocol=4)
+        with open(f"{input_data}/status.pkl", "wb") as f:
+            pickle.dump(
+                [states, actions, rewards, lengths, conditions, vel_abss],
+                f,
+                protocol=4,
+            )
 
     return states, actions, rewards, lengths, conditions, vel_abss
 

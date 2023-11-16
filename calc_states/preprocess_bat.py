@@ -25,15 +25,11 @@ from preprocess_bats.cut_down import (
 )
 
 
-def calc_cross_points(
-    prev_f, pos_x, pos_z, env_name
-):
+def calc_cross_points(prev_f, pos_x, pos_z, env_name):
     X = [prev_f[0]]
     Y = [prev_f[1]]
 
-    cross_list = cross_point(
-        X, Y, pos_x, pos_z, env_name
-    )
+    cross_list = cross_point(X, Y, pos_x, pos_z, env_name)
 
     return cross_list
 
@@ -67,9 +63,7 @@ def calc_rotation_point(prev_f, next_point, dim):
     return rot_all_x, rot_all_y
 
 
-def calc_angles(
-    prev_f, prev_point, next_point, dim
-):
+def calc_angles(prev_f, prev_point, next_point, dim):
     if dim == 2:
         X = [
             prev_point[0],
@@ -137,25 +131,17 @@ def calc_states(
         print("not concider in 3-dim yet")
         exit()
     print("calc angle................")
-    theta = calc_angles(
-        prev_f, prev_point, next_point, dim
-    )
+    theta = calc_angles(prev_f, prev_point, next_point, dim)
 
     # calc rotation point
     print("calc rotation point.......")
-    pos_x, pos_z = calc_rotation_point(
-        prev_f, next_point, dim
-    )
+    pos_x, pos_z = calc_rotation_point(prev_f, next_point, dim)
     # calc cross point
     print("calc cross points.........")
     if pulse_flag:
-        cross_distance = calc_cross_points(
-            prev_f, pos_x, pos_z, env_name
-        )
+        cross_distance = calc_cross_points(prev_f, pos_x, pos_z, env_name)
     else:
-        cross_distance = [
-            2.0 for i in range(len(pos_x))
-        ]
+        cross_distance = [2.0 for i in range(len(pos_x))]
 
     return theta, cross_distance
 
@@ -218,9 +204,7 @@ if __name__ == "__main__":
         help="episode duration [sec]",
     )
     args = parser.parse_args()
-    input_data_path = (
-        args.data_path
-    )  # not fix yet, data is .csv.
+    input_data_path = args.data_path  # not fix yet, data is .csv.
     episode_sec = args.episode_sec
 
     (
@@ -230,16 +214,12 @@ if __name__ == "__main__":
         lengths,
         conditions,
         vel_abss,
-    ) = preprocess_bat(
-        input_data_path, episode_sec
-    )
+    ) = preprocess_bat(input_data_path, episode_sec)
 
     df = pd.DataFrame()
 
     for i in range(len(states)):
-        df[
-            "distance obs {}".format(i + 1)
-        ] = states[i]
+        df["distance obs {}".format(i + 1)] = states[i]
 
     os.makedirs("./calc/tmp", exist_ok=True)
 

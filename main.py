@@ -98,7 +98,13 @@ path_init = "./weights/"  # './weights_vrnn/init/'
 
 
 def run_epoch(train, rollout, hp):
-    loader = train_loader if train == 1 else val_loader if train == 0 else test_loader
+    loader = (
+        train_loader
+        if train == 1
+        else val_loader
+        if train == 0
+        else test_loader
+    )
 
     losses = {}
     losses2 = {}
@@ -136,7 +142,14 @@ def run_epoch(train, rollout, hp):
                         data, rollout, train, macro_intents, hp=hp
                     )
                 else:
-                    _, _, _, batch_losses, batch_losses2, prediction = model.sample(
+                    (
+                        _,
+                        _,
+                        _,
+                        batch_losses,
+                        batch_losses2,
+                        prediction,
+                    ) = model.sample(
                         data,
                         macro_intents,
                         rollout=True,
@@ -272,22 +285,28 @@ def run_sanity(args, game_files):
                 next_vel = current_vel
 
                 losses["e_pos"] += batch_error(next_pos, next_pos0)
-                losses["e_pmax"][:, t - burn_in] += batch_error(next_pos, next_pos0)
+                losses["e_pmax"][:, t - burn_in] += batch_error(
+                    next_pos, next_pos0
+                )
                 losses["e_vel"] += batch_error(next_vel, next_vel0)
-                losses["e_vmax"][:, t - burn_in] += batch_error(next_vel, next_vel0)
+                losses["e_vmax"][:, t - burn_in] += batch_error(
+                    next_vel, next_vel0
+                )
 
                 losses["e_acc"] += batch_error(next_acc, next_acc0)
-                losses["e_amax"][:, t - burn_in] += batch_error(next_acc, next_acc0)
+                losses["e_amax"][:, t - burn_in] += batch_error(
+                    next_acc, next_acc0
+                )
                 if args.in_out:
                     data[i, :, t + 1, :2] = np.concatenate([next_pos], 1)
                 elif args.in_sma:
-                    data[i, :, t + 1, n_feat * i + 0 : n_feat * i + 2] = np.concatenate(
-                        [next_pos], 1
-                    )
+                    data[
+                        i, :, t + 1, n_feat * i + 0 : n_feat * i + 2
+                    ] = np.concatenate([next_pos], 1)
                 else:
-                    data[i, :, t + 1, n_feat * i + 3 : n_feat * i + 5] = np.concatenate(
-                        [next_pos], 1
-                    )
+                    data[
+                        i, :, t + 1, n_feat * i + 3 : n_feat * i + 5
+                    ] = np.concatenate([next_pos], 1)
     # del data
     losses["e_pos"] /= args.horizon - burn_in
     losses["e_vel"] /= args.horizon - burn_in
@@ -380,7 +399,9 @@ def label_macro_intents(data, window_size=0):
     n_feat = int((SEQUENCE_DIMENSION - 4) / n_all_agents)
 
     # Compute macro-intents
-    macro_intents_all = np.zeros((N, SEQUENCE_LENGTH, N_AGENTS))  # data.shape[1]
+    macro_intents_all = np.zeros(
+        (N, SEQUENCE_LENGTH, N_AGENTS)
+    )  # data.shape[1]
 
     for i in range(N):
         for k in range(N_AGENTS):
@@ -440,10 +461,14 @@ def get_macro_intent(position, N_AGENTS, t):
         macro = macro_x * N_MACRO_Y + macro_y
     else:
         x = bound(
-            position[0], -N_MACRO_X * MACRO_SIZE + eps, N_MACRO_X * MACRO_SIZE - eps
+            position[0],
+            -N_MACRO_X * MACRO_SIZE + eps,
+            N_MACRO_X * MACRO_SIZE - eps,
         )
         y = bound(
-            position[1], -N_MACRO_Y * MACRO_SIZE + eps, N_MACRO_Y * MACRO_SIZE - eps
+            position[1],
+            -N_MACRO_Y * MACRO_SIZE + eps,
+            N_MACRO_Y * MACRO_SIZE - eps,
         )
         macro_x = int(x / MACRO_SIZE) + N_MACRO_X
         macro_y = int(y / MACRO_SIZE) + N_MACRO_Y
@@ -485,7 +510,8 @@ if __name__ == "__main__":
 
     # all game ids file name, note that '/' or '\\' depends on the environment
     all_games_id = [
-        i.split(os.sep)[-1].split(".")[0] for i in glob.glob(game_dir + "/*.pkl")
+        i.split(os.sep)[-1].split(".")[0]
+        for i in glob.glob(game_dir + "/*.pkl")
     ]
     global fs
     fs = 1 / args.fs
@@ -511,7 +537,9 @@ if __name__ == "__main__":
 
     # save the processed file to disk to avoid repeated work
     game_file0 = "./data/all_" + args.data + "_games_" + str(n_GorS) + "_"
-    game_file0 = game_file0 + "unnorm" if not args.normalize else game_file0 + "norm"
+    game_file0 = (
+        game_file0 + "unnorm" if not args.normalize else game_file0 + "norm"
+    )
 
     game_file0 = game_file0 + "_filt"
     game_file0 = game_file0 + "_acc"
@@ -547,13 +575,15 @@ if __name__ == "__main__":
 
     activeRoleInd = range(n_roles)
     activeRole = []
-    activeRole.extend([str(n) for n in range(n_roles)])  # need to be reconsidered
+    activeRole.extend(
+        [str(n) for n in range(n_roles)]
+    )  # need to be reconsidered
 
     if acc == 0 or acc == -1 or acc == 4:  # vel/pos/acc only
         if args.in_sma:
-            outputlen0 = 3
+            outputlen0 = 2
         else:
-            outputlen0 = 4
+            outputlen0 = 3
     elif acc == 3:  # all
         outputlen0 = 6
     else:
@@ -562,22 +592,20 @@ if __name__ == "__main__":
     # We are only looking at the most recent character each time.
     numOfPrevSteps = 1
     totalTimeSteps_test = totalTimeSteps
+    states_num = 251
     if args.in_sma:
-        n_feat = 7
-        # n_feat = 6 if vel_in == 2 else 4
-        # if acc == -1:
-        #     n_feat = 2
+        # [X, Y, Vx, Vy, theta, pulse_flag, Env, Bat, states]
+        n_feat = 8 + states_num
     else:
-        n_feat = 10
-    # elif args.in_out:
-    #     n_feat = 6 if vel_in == 2 else 4
-    # else:
-    #     n_feat = 15 if vel_in == 2 else 13
+        # [X, Y, Z, Vx, Vy, Vz, theta, pulse_flag, Env, Bat, states]
+        n_feat = 10 + states_num
 
     # train pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/bats/bat_flight_TRAIN_with_pulse.pkl", "rb"
+            os.path.dirname(game_files)
+            + "/bats/bat_flight_TRAIN_with_pulse.pkl",
+            "rb",
         ) as f:
             X_train_all = np.load(f, allow_pickle=True)
     except:
@@ -586,7 +614,9 @@ if __name__ == "__main__":
     # test pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/bats/bat_flight_TEST_with_pulse.pkl", "rb"
+            os.path.dirname(game_files)
+            + "/bats/bat_flight_TEST_with_pulse.pkl",
+            "rb",
         ) as f:
             X_test_all = np.load(f, allow_pickle=True)
     except:
@@ -609,7 +639,9 @@ if __name__ == "__main__":
     batchSize_val = len(ind_val)
 
     X_all = np.zeros([n_roles, len(ind_train), totalTimeSteps + 4, featurelen])
-    X_val_all = np.zeros([n_roles, len(ind_val), totalTimeSteps + 4, featurelen])
+    X_val_all = np.zeros(
+        [n_roles, len(ind_val), totalTimeSteps + 4, featurelen]
+    )
     for i, X_train in enumerate(X_train_all):
         i_tr = 0
         i_val = 0
@@ -658,7 +690,9 @@ if __name__ == "__main__":
             if args.data == "nba":
                 if set([b]).issubset(set(ind_test)):
                     for r in range(totalTimeSteps + 4):
-                        X_test_test_all[i][i_te][r][:] = np.squeeze(X_test[b][r, :])
+                        X_test_test_all[i][i_te][r][:] = np.squeeze(
+                            X_test[b][r, :]
+                        )
                     i_te += 1
             elif args.data == "soccer":
                 for r in range(totalTimeSteps_test + 4):
@@ -675,7 +709,9 @@ if __name__ == "__main__":
         tmp_label = macro_intents[j * batchSize : (j + 1) * batchSize, :, :]
         with open(game_files + "_tr" + str(j) + ".pkl", "wb") as f:
             pickle.dump(
-                [tmp_data, len_seqs_val, len_seqs_test, tmp_label], f, protocol=4
+                [tmp_data, len_seqs_val, len_seqs_test, tmp_label],
+                f,
+                protocol=4,
             )
 
     J = 2
@@ -683,7 +719,9 @@ if __name__ == "__main__":
     for j in range(J):
         if j < J - 1:
             tmp_data = X_val_all[:, j * batchval : (j + 1) * batchval, :, :]
-            tmp_label = macro_intents_val[j * batchval : (j + 1) * batchval, :, :]
+            tmp_label = macro_intents_val[
+                j * batchval : (j + 1) * batchval, :, :
+            ]
         else:
             tmp_data = X_val_all[:, j * batchval :, :, :]
             tmp_label = macro_intents_val[j * batchval :, :, :]
@@ -743,7 +781,9 @@ if __name__ == "__main__":
         init_filename0 = init_filename0 + "inout_"
     init_filename0 = init_filename0 + "acc_" + str(args.acc) + "_"
     init_filename0 = (
-        init_filename0 + "norm/" if args.normalize else init_filename0 + "unnorm/"
+        init_filename0 + "norm/"
+        if args.normalize
+        else init_filename0 + "unnorm/"
     )
     if args.attention == 3:
         init_filename00 = init_filename0 + args.data + "_att3/"
@@ -920,7 +960,9 @@ if __name__ == "__main__":
         print("args.cont = True")
         if "MACRO" in args.model and args.pretrain > 0:
             if os.path.exists("{}_best_pretrain.pth".format(init_pthname0)):
-                state_dict = torch.load("{}_best_pretrain.pth".format(init_pthname0))
+                state_dict = torch.load(
+                    "{}_best_pretrain.pth".format(init_pthname0)
+                )
                 model.load_state_dict(state_dict)
                 print("best pretrain model was loaded")
             else:
@@ -928,7 +970,9 @@ if __name__ == "__main__":
 
         elif args.pretrain2 > 0:
             if os.path.exists("{}_best_pretrain2.pth".format(init_pthname0)):
-                state_dict = torch.load("{}_best_pretrain2.pth".format(init_pthname0))
+                state_dict = torch.load(
+                    "{}_best_pretrain2.pth".format(init_pthname0)
+                )
                 model.load_state_dict(state_dict)
                 print("best pretrain body model was loaded")
             else:
@@ -945,11 +989,15 @@ if __name__ == "__main__":
         print("args.cont = False")
         if "MACRO" in args.model and not args.wo_macro and args.pretrain == 0:
             # https://discuss.pytorch.org/t/how-to-transfer-learned-weight-in-the-same-model-without-last-layer/32824
-            pretrained_dict = torch.load("{}_best_pretrain.pth".format(init_pthname0))
+            pretrained_dict = torch.load(
+                "{}_best_pretrain.pth".format(init_pthname0)
+            )
             model_dict = model.state_dict()
             pretrained_list = list(pretrained_dict.items())
             # 1. filter out unnecessary keys
-            pretrained_dict = {k: v for k, v in pretrained_list[:20] if k in model_dict}
+            pretrained_dict = {
+                k: v for k, v in pretrained_list[:20] if k in model_dict
+            }
             # 2. overwrite entries in the existing state dict
             model_dict.update(pretrained_dict)
             # 3. load the new state dict
@@ -980,7 +1028,9 @@ if __name__ == "__main__":
 
     # Dataset loaders
     num_workers = 1  # int(args.numProcess/2)
-    kwargs = {"num_workers": num_workers, "pin_memory": True} if args.cuda else {}
+    kwargs = (
+        {"num_workers": num_workers, "pin_memory": True} if args.cuda else {}
+    )
     kwargs2 = {"num_workers": 4, "pin_memory": True} if args.cuda else {}
     print("num_workers:" + str(num_workers))
     batchSize_val = len_seqs_val if len_seqs_val <= batchSize else batchSize
@@ -993,7 +1043,9 @@ if __name__ == "__main__":
         if "MACRO" in args.model and (not args.wo_macro or args.attention == 3):
             batchSize_test = 80
             batchSize_val = 80
-        elif "MACRO" in args.model and (not args.wo_macro and args.attention == 3):
+        elif "MACRO" in args.model and (
+            not args.wo_macro and args.attention == 3
+        ):
             batchSize_test = 64
             batchSize_val = 64
         if "MACRO" in args.model and not args.wo_macro:
@@ -1006,19 +1058,25 @@ if __name__ == "__main__":
         #    batchSize_test = int(batchSize_test/4*3)
     if not TEST:
         train_loader = DataLoader(
-            GeneralDataset(args, len_seqs_tr, train=1, normalize_data=args.normalize),
+            GeneralDataset(
+                args, len_seqs_tr, train=1, normalize_data=args.normalize
+            ),
             batch_size=batchSize,
             shuffle=False,
             **kwargs
         )
         val_loader = DataLoader(
-            GeneralDataset(args, len_seqs_val, train=0, normalize_data=args.normalize),
+            GeneralDataset(
+                args, len_seqs_val, train=0, normalize_data=args.normalize
+            ),
             batch_size=batchSize_val,
             shuffle=False,
             **kwargs2
         )
     test_loader = DataLoader(
-        GeneralDataset(args, len_seqs_test, train=-1, normalize_data=args.normalize),
+        GeneralDataset(
+            args, len_seqs_test, train=-1, normalize_data=args.normalize
+        ),
         batch_size=batchSize_test,
         shuffle=False,
         **kwargs2
@@ -1107,18 +1165,28 @@ if __name__ == "__main__":
             hyperparams["burn_in"] = args.horizon
             hyperparams["L_att"] = L_att
             # hyperparams = {'model': args.model,'acc': acc,'burn_in': args.horizon,'L_att':L_att}
-            train_loss, train_loss2 = run_epoch(train=1, rollout=False, hp=hyperparams)
-            print("Train:\t" + loss_str(train_loss) + "|" + loss_str(train_loss2))
+            train_loss, train_loss2 = run_epoch(
+                train=1, rollout=False, hp=hyperparams
+            )
+            print(
+                "Train:\t" + loss_str(train_loss) + "|" + loss_str(train_loss2)
+            )
 
             if not hyperparams["pretrain"]:  # epoch % 5 == 3:
                 hyperparams["burn_in"] = args.burn_in
                 # hyperparams = {'model': args.model,'acc': acc,'burn_in': args.burn_in,'L_att':L_att}
-                val_loss, val_loss2 = run_epoch(train=0, rollout=True, hp=hyperparams)
-                print("RO Val:\t" + loss_str(val_loss) + "|" + loss_str(val_loss2))
+                val_loss, val_loss2 = run_epoch(
+                    train=0, rollout=True, hp=hyperparams
+                )
+                print(
+                    "RO Val:\t" + loss_str(val_loss) + "|" + loss_str(val_loss2)
+                )
 
             else:
                 hyperparams["burn_in"] = args.horizon
-                val_loss, val_loss2 = run_epoch(train=0, rollout=False, hp=hyperparams)
+                val_loss, val_loss2 = run_epoch(
+                    train=0, rollout=False, hp=hyperparams
+                )
                 print("Val:\t" + loss_str(val_loss) + "|" + loss_str(val_loss2))
 
             total_val_loss = sum(val_loss.values())
@@ -1127,7 +1195,9 @@ if __name__ == "__main__":
             print("Time:\t {:.3f}".format(epoch_time))
 
             # for tensorboardX of train
-            writer.add_scalars("train/loss for backpropagation", train_loss, epoch)
+            writer.add_scalars(
+                "train/loss for backpropagation", train_loss, epoch
+            )
             writer.add_scalars("train/loss", train_loss2, epoch)
             # for tensorboardX of validation
             writer.add_scalars("val/loss for backpropagation", val_loss, epoch)
@@ -1151,7 +1221,8 @@ if __name__ == "__main__":
                 print("##### Best model #####")
                 if (
                     epoch > pretrain_time
-                    and (best_val_loss_prev - best_val_loss) / best_val_loss < 0.0001
+                    and (best_val_loss_prev - best_val_loss) / best_val_loss
+                    < 0.0001
                     and best_val_loss_prev != 0
                 ):
                     print(
@@ -1175,7 +1246,9 @@ if __name__ == "__main__":
                 epochs_since_best = 0
                 lr = max(args.start_lr, args.min_lr)
 
-                state_dict = torch.load("{}_best_pretrain.pth".format(init_pthname0))
+                state_dict = torch.load(
+                    "{}_best_pretrain.pth".format(init_pthname0)
+                )
                 model.load_state_dict(state_dict)
 
             elif epoch == pretrain_time + pretrain2_time:
@@ -1184,7 +1257,9 @@ if __name__ == "__main__":
                 epochs_since_best = 0
                 lr = max(args.start_lr, args.min_lr)
 
-                state_dict = torch.load("{}_best_pretrain2.pth".format(init_pthname))
+                state_dict = torch.load(
+                    "{}_best_pretrain2.pth".format(init_pthname)
+                )
                 model.load_state_dict(state_dict)
                 pretrain2_model = model
                 pretrained2_list = list(state_dict.items())
@@ -1233,11 +1308,15 @@ if __name__ == "__main__":
         print("test sample")
         # Sample trajectory
         samples = [
-            np.zeros((args.horizon + 1, args.n_agents, len_seqs_test, featurelen))
+            np.zeros(
+                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen)
+            )
             for t in range(n_sample)
         ]
         samples_true = [
-            np.zeros((args.horizon + 1, args.n_agents, len_seqs_test, featurelen))
+            np.zeros(
+                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen)
+            )
             for t in range(n_sample)
         ]
         hard_att = np.zeros(
@@ -1249,7 +1328,9 @@ if __name__ == "__main__":
                 n_sample,
             )
         )
-        macros = np.zeros((args.horizon, args.n_agents, len_seqs_test, n_sample))
+        macros = np.zeros(
+            (args.horizon, args.n_agents, len_seqs_test, n_sample)
+        )
         loss_i = [{} for t in range(n_sample)]
         losses = {}
         losses2 = {}
@@ -1271,7 +1352,14 @@ if __name__ == "__main__":
 
                 if "MACRO" in args.model:
                     macro_intents = macro_intents.transpose(0, 1)
-                    sample, macro, att, output, output2, prediction = model.sample(
+                    (
+                        sample,
+                        macro,
+                        att,
+                        output,
+                        output2,
+                        prediction,
+                    ) = model.sample(
                         data,
                         macro_intents,
                         rollout=True,
@@ -1324,14 +1412,18 @@ if __name__ == "__main__":
                     samples[r * n_smp_b + i][
                         :,
                         :,
-                        batch_idx * batchSize_test : (batch_idx + 1) * batchSize_test,
+                        batch_idx
+                        * batchSize_test : (batch_idx + 1)
+                        * batchSize_test,
                     ] = sample0[
                         :-3
                     ]  # なんで:-3？, 3フレームだけなくなる
                     samples_true[r * n_smp_b + i][
                         :,
                         :,
-                        batch_idx * batchSize_test : (batch_idx + 1) * batchSize_test,
+                        batch_idx
+                        * batchSize_test : (batch_idx + 1)
+                        * batchSize_test,
                     ] = data0[
                         :-3
                     ]  ###ここ実際の軌跡
@@ -1358,7 +1450,9 @@ if __name__ == "__main__":
                     )
                     losses2[key][
                         r * n_smp_b : (r + 1) * n_smp_b,
-                        batch_idx * batchSize_test : (batch_idx + 1) * batchSize_test,
+                        batch_idx
+                        * batchSize_test : (batch_idx + 1)
+                        * batchSize_test,
                     ] = (
                         output[key].detach().cpu().numpy()
                     )
@@ -1372,16 +1466,18 @@ if __name__ == "__main__":
                     )
                     losses2[key][
                         r * n_smp_b : (r + 1) * n_smp_b,
-                        batch_idx * batchSize_test : (batch_idx + 1) * batchSize_test,
+                        batch_idx
+                        * batchSize_test : (batch_idx + 1)
+                        * batchSize_test,
                     ] = (
                         output2[key].detach().cpu().numpy()
                     )
 
             for i in range(n_smp_b):
                 for key in losses:
-                    loss_i[r * n_smp_b + i][key] = losses[key][r * n_smp_b + i] / len(
-                        test_loader.dataset
-                    )
+                    loss_i[r * n_smp_b + i][key] = losses[key][
+                        r * n_smp_b + i
+                    ] / len(test_loader.dataset)
                 print(
                     "Test sample "
                     + str(r * n_smp_b + i)
@@ -1411,7 +1507,13 @@ if __name__ == "__main__":
                 bestL2_m[key] = np.mean(best)
                 bestL2_sd[key] = np.std(best)
 
-            print(args.model + "att" + str(args.attention) + " body:" + str(args.body))
+            print(
+                args.model
+                + "att"
+                + str(args.attention)
+                + " body:"
+                + str(args.body)
+            )
             print(
                 "(mean):"
                 + " $"
@@ -1487,7 +1589,9 @@ if __name__ == "__main__":
     if "MACRO" in args.model and not args.wo_macro:
         # Sample trajectory
         samples = [
-            np.zeros((args.horizon + 1, args.n_agents, len_seqs_test, featurelen))
+            np.zeros(
+                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen)
+            )
             for t in range(n_sample)
         ]
         hard_att = np.zeros(
@@ -1507,14 +1611,22 @@ if __name__ == "__main__":
             data = data.permute(2, 1, 0, 3)
             for i in range(n_sample):
                 samples[i][
-                    :, :, batch_idx * batchSize_test : (batch_idx + 1) * batchSize_test
-                ] = (data[: args.horizon + 1, :, :, :].detach().cpu().numpy())
+                    :,
+                    :,
+                    batch_idx
+                    * batchSize_test : (batch_idx + 1)
+                    * batchSize_test,
+                ] = (
+                    data[: args.horizon + 1, :, :, :].detach().cpu().numpy()
+                )
 
         # Save samples
         experiment_path = "{}/experiments/sample_1step".format(init_filename0)
         if not os.path.exists(experiment_path):
             os.makedirs(experiment_path)
-        pickle.dump(samples, open(experiment_path + "/samples.p", "wb"), protocol=4)
+        pickle.dump(
+            samples, open(experiment_path + "/samples.p", "wb"), protocol=4
+        )
         print("GT data is saved")
     i = 0
     # counter factural prediction
@@ -1522,7 +1634,9 @@ if __name__ == "__main__":
     if CF_pred and args.attention == 3:
         print("counter factural prediction")
         samples = [
-            np.zeros((args.horizon + 1, args.n_agents, len_seqs_test, featurelen))
+            np.zeros(
+                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen)
+            )
             for t in range(n_sample)
         ]
         hard_att = np.zeros(
@@ -1579,12 +1693,16 @@ if __name__ == "__main__":
                     samples[r * n_smp_b + i][
                         :,
                         :,
-                        batch_idx * batchSize_test : (batch_idx + 1) * batchSize_test,
+                        batch_idx
+                        * batchSize_test : (batch_idx + 1)
+                        * batchSize_test,
                     ] = sample0[:-3]
                     hard_att[
                         :,
                         :,
-                        batch_idx * batchSize_test : (batch_idx + 1) * batchSize_test,
+                        batch_idx
+                        * batchSize_test : (batch_idx + 1)
+                        * batchSize_test,
                         :,
                         r * n_smp_b + i,
                     ] = att[:, :, :, :, i]
@@ -1598,15 +1716,17 @@ if __name__ == "__main__":
                     )
                     losses2[key][
                         r * n_smp_b : (r + 1) * n_smp_b,
-                        batch_idx * batchSize_test : (batch_idx + 1) * batchSize_test,
+                        batch_idx
+                        * batchSize_test : (batch_idx + 1)
+                        * batchSize_test,
                     ] = (
                         output2[key].detach().cpu().numpy()
                     )
             for i in range(n_smp_b):
                 for key in losses:
-                    loss_i[r * n_smp_b + i][key] = losses[key][r * n_smp_b + i] / len(
-                        test_loader.dataset
-                    )
+                    loss_i[r * n_smp_b + i][key] = losses[key][
+                        r * n_smp_b + i
+                    ] / len(test_loader.dataset)
                 print(
                     "CF sample "
                     + str(r * n_smp_b + i)

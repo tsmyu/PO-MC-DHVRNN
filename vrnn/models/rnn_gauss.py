@@ -9,7 +9,12 @@ from vrnn.models.utils import (
     index_by_agent,
     get_macro_ohe,
 )
-from vrnn.models.utils import sample_gauss, nll_gauss, kld_gauss, sample_multinomial
+from vrnn.models.utils import (
+    sample_gauss,
+    nll_gauss,
+    kld_gauss,
+    sample_multinomial,
+)
 from vrnn.models.utils import (
     batch_error,
     roll_out,
@@ -160,7 +165,9 @@ class RNN_GAUSS(nn.Module):
         len_time = self.params["horizon"]  # states.size(0)
 
         h = [
-            torch.zeros(self.params["n_layers"], batchSize, self.params["rnn_dim"])
+            torch.zeros(
+                self.params["n_layers"], batchSize, self.params["rnn_dim"]
+            )
             for i in range(n_agents)
         ]
         if self.params["cuda"]:
@@ -178,10 +185,6 @@ class RNN_GAUSS(nn.Module):
                         x_t0 = states[t + 1][i][
                             :, n_feat * i + 2 : n_feat * i + 4
                         ].clone()
-                        next_pulse = (
-                            states[t + 1][i][:, n_feat * i + 5].clone().reshape(-1, 1)
-                        )
-                        x_t0_with_pulse = torch.cat((x_t0, next_pulse), dim=1)
 
                         # x_t0 = list(
                         #     itemgetter(
@@ -196,7 +199,9 @@ class RNN_GAUSS(nn.Module):
                             :, n_feat * i + 3 : n_feat * i + 6
                         ].clone()
                 elif self.in_sma:
-                    x_t0 = states[t + 1][i][:, n_feat * i : n_feat * i + n_feat].clone()
+                    x_t0 = states[t + 1][i][
+                        :, n_feat * i : n_feat * i + n_feat
+                    ].clone()
                 elif n_feat == 13:
                     x_t0 = states[t + 1][i][
                         :, n_feat * i + 3 : n_feat * i + x_dim + 5
@@ -212,7 +217,7 @@ class RNN_GAUSS(nn.Module):
 
                 # action
                 if self.dataset == "bat":
-                    x_t = x_t0_with_pulse[:, :]  # vel
+                    x_t = x_t0[:, :]  # vel
                 elif acc == 0:
                     x_t = x_t0[:, 2:4]  # vel
                 elif acc == 1:
@@ -228,10 +233,6 @@ class RNN_GAUSS(nn.Module):
                     if self.in_sma:  # 2dim
                         current_pos = y_t[:, n_feat * i : n_feat * i + 2]
                         current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
-                        flag_pulse = y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
-                        current_vel_with_pulse = torch.cat(
-                            (current_vel, flag_pulse), dim=1
-                        )
                         v0_t1 = x_t0
                         v0_t2 = states[t + 2][i][
                             :, n_feat * i + 2 : n_feat * i + 4
@@ -248,7 +249,9 @@ class RNN_GAUSS(nn.Module):
 
                 elif self.in_sma:
                     current_pos = y_t[:, n_feat * i : n_feat * i + 2]
-                    p0_t2 = states[t + 2][i][:, n_feat * i : n_feat * i + 2].clone()
+                    p0_t2 = states[t + 2][i][
+                        :, n_feat * i : n_feat * i + 2
+                    ].clone()
                     if acc >= 0:
                         current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
                         v0_t1 = x_t0[:, 2:4]
@@ -257,7 +260,9 @@ class RNN_GAUSS(nn.Module):
                         ].clone()
 
                         if acc >= 2:
-                            current_acc = y_t[:, n_feat * i + 4 : n_feat * i + 6]
+                            current_acc = y_t[
+                                :, n_feat * i + 4 : n_feat * i + 6
+                            ]
                             a0_t1 = x_t0[:, 4:6]
                         else:
                             current_acc = (x_t0[:, 2:4] - current_vel) / fs
@@ -265,7 +270,9 @@ class RNN_GAUSS(nn.Module):
 
                     elif acc == -1:
                         current_vel = (x_t0 - current_pos) / fs
-                        p0_t3 = states[t + 3][i][:, n_feat * i : n_feat * i + 2].clone()
+                        p0_t3 = states[t + 3][i][
+                            :, n_feat * i : n_feat * i + 2
+                        ].clone()
                         v0_t2 = (p0_t3 - p0_t2) / fs
                         v0_t1 = (p0_t2 - x_t0) / fs
 
@@ -280,11 +287,13 @@ class RNN_GAUSS(nn.Module):
                     current_pos = y_t[:, n_feat * i + 3 : n_feat * i + 5]
                     current_vel = y_t[:, n_feat * i + 5 : n_feat * i + 7]
                     # current_acc
-                    v0_t2 = states[t + 2][i][:, n_feat * i + 5 : n_feat * i + 7].clone()
+                    v0_t2 = states[t + 2][i][
+                        :, n_feat * i + 5 : n_feat * i + 7
+                    ].clone()
 
                 if self.in_state0:
                     if self.dataset == "bat":
-                        state_in0 = current_vel_with_pulse  ### velocity + pulse timing
+                        state_in0 = current_vel  ### velocity + pulse timing
                     elif acc == 3:
                         state_in0 = torch.cat(
                             [current_pos, current_vel, current_acc], 1
@@ -300,6 +309,8 @@ class RNN_GAUSS(nn.Module):
 
                 # RNN
                 state_in = y_t  ### action + state
+                state_in.pop(7)
+                state_in.pop(6)
                 enc_in = torch.cat([x_t, state_in0, state_in, h[i][-1]], 1)
 
                 dec_t = self.dec[i](h[i][-1])
@@ -308,15 +319,15 @@ class RNN_GAUSS(nn.Module):
                 if not self.fixedsigma:
                     dec_std_t = self.dec_std[i](dec_t)
                 else:
-                    dec_std_t = self.fixedsigma**2 * torch.ones(dec_mean_t.shape).to(
-                        device
-                    )
+                    dec_std_t = self.fixedsigma**2 * torch.ones(
+                        dec_mean_t.shape
+                    ).to(device)
                 _, h[i] = self.rnn[i](enc_in.unsqueeze(0), h[i])
 
                 # objective function
                 if acc == -1:
                     out["L_rec"] += nll_gauss(
-                        dec_mean_t[:, :3], dec_std_t[:, :3], torch.cat([x_t], 1)
+                        dec_mean_t[:, :2], dec_std_t[:, :2], torch.cat([x_t], 1)
                     )
 
                 else:
@@ -366,9 +377,13 @@ class RNN_GAUSS(nn.Module):
                         a_t2 = (v0_t3 - v0_t2) / fs
 
                 elif n_feat == 15:
-                    a_t2 = states[t + 2][i][:, n_feat * i + 7 : n_feat * i + 9].clone()
+                    a_t2 = states[t + 2][i][
+                        :, n_feat * i + 7 : n_feat * i + 9
+                    ].clone()
                 elif n_feat == 6:
-                    a_t2 = states[t + 2][i][:, n_feat * i + 4 : n_feat * i + 6].clone()
+                    a_t2 = states[t + 2][i][
+                        :, n_feat * i + 4 : n_feat * i + 6
+                    ].clone()
                 elif n_feat == 4:
                     if acc >= 0:
                         v0_t3 = states[t + 3][i][
@@ -376,7 +391,9 @@ class RNN_GAUSS(nn.Module):
                         ].clone()
                         a_t2 = (v0_t3 - v0_t2) / fs
                 elif n_feat == 2:
-                    p0_t4 = states[t + 4][i][:, n_feat * i : n_feat * i + 2].clone()
+                    p0_t4 = states[t + 4][i][
+                        :, n_feat * i : n_feat * i + 2
+                    ].clone()
                     v0_t3 = (p0_t4 - p0_t3) / fs
                     a_t2 = (v0_t3 - v0_t2) / fs
 
@@ -396,14 +413,18 @@ class RNN_GAUSS(nn.Module):
                     out2["e_jrk"] += batch_error(a_t1, a_t2)
 
                     if rollout and self.in_out:  # for acc == 3, TBD
-                        states[t + 1, i, :, :] = torch.cat([next_pos, v_t1], dim=1)
+                        states[t + 1, i, :, :] = torch.cat(
+                            [next_pos, v_t1], dim=1
+                        )
                     del v_t1, current_pos, next_pos
             # role out
             if t >= burn_in and not self.in_out:  # if rollout:
                 for i in range(n_agents):
+                    y_t_pre = states[t - 1][i].clone()
                     y_t = states[t][i].clone()  # state
                     y_t1i = states[t + 1][i].clone()
                     states[t + 1][i] = roll_out(
+                        y_t_pre,
                         y_t,
                         y_t1i,
                         prediction_all,
@@ -530,7 +551,9 @@ class RNN_GAUSS(nn.Module):
 
         h = [
             [
-                torch.zeros(self.params["n_layers"], batchSize, self.params["rnn_dim"])
+                torch.zeros(
+                    self.params["n_layers"], batchSize, self.params["rnn_dim"]
+                )
                 for _ in range(n_sample)
             ]
             for i in range(n_agents)
@@ -564,12 +587,14 @@ class RNN_GAUSS(nn.Module):
                             x_t0 = states[t + 1][i][
                                 :, n_feat * i + 2 : n_feat * i + 4
                             ].clone()
-                            next_pulse = states[t + 1][i][:, n_feat * i + 5].clone()
+
                         else:  # 3dim
                             x_t0 = states[t + 1][i][
                                 :, n_feat * i + 3 : n_feat * i + 6
                             ].clone()
-                            next_pulse = states[t + 1][i][:, n_feat * i + 8].clone()
+                            next_pulse = states[t + 1][i][
+                                :, n_feat * i + 8
+                            ].clone()
                     elif n_feat < 10:
                         x_t0 = states[t + 1][i][
                             :, n_feat * i : n_feat * i + n_feat
@@ -585,7 +610,7 @@ class RNN_GAUSS(nn.Module):
 
                     # action
                     if self.dataset == "bat":
-                        x_t = x_t0[:, :]  # vel 3dim
+                        x_t = x_t0[:, :]  # vel
                     elif acc == 0:
                         x_t = x_t0[:, 2:4]  # vel
                     elif acc == 1:
@@ -601,7 +626,9 @@ class RNN_GAUSS(nn.Module):
                     if self.dataset == "bat":
                         if self.in_sma:  # 2dim
                             current_pos = y_t[:, n_feat * i : n_feat * i + 2]
-                            current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
+                            current_vel = y_t[
+                                :, n_feat * i + 2 : n_feat * i + 4
+                            ]
                             v0_t1 = x_t0
                             v0_t2 = states[t + 2][i][
                                 :, n_feat * i + 2 : n_feat * i + 4
@@ -609,7 +636,9 @@ class RNN_GAUSS(nn.Module):
                             a0_t1 = (v0_t2 - v0_t1) / fs
                         else:  # 3dim
                             current_pos = y_t[:, n_feat * i : n_feat * i + 3]
-                            current_vel = y_t[:, n_feat * i + 3 : n_feat * i + 6]
+                            current_vel = y_t[
+                                :, n_feat * i + 3 : n_feat * i + 6
+                            ]
                             v0_t1 = x_t0
                             v0_t2 = states[t + 2][i][
                                 :, n_feat * i + 3 : n_feat * i + 6
@@ -617,16 +646,22 @@ class RNN_GAUSS(nn.Module):
                             a0_t1 = (v0_t2 - v0_t1) / fs
                     elif self.in_sma:
                         current_pos = y_t[:, n_feat * i : n_feat * i + 2]
-                        p0_t2 = states[t + 2][i][:, n_feat * i : n_feat * i + 2].clone()
+                        p0_t2 = states[t + 2][i][
+                            :, n_feat * i : n_feat * i + 2
+                        ].clone()
                         if acc >= 0:
-                            current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
+                            current_vel = y_t[
+                                :, n_feat * i + 2 : n_feat * i + 4
+                            ]
                             v0_t1 = x_t0[:, 2:4]
                             v0_t2 = states[t + 2][i][
                                 :, n_feat * i + 2 : n_feat * i + 4
                             ].clone()
 
                             if acc >= 2:
-                                current_acc = y_t[:, n_feat * i + 4 : n_feat * i + 6]
+                                current_acc = y_t[
+                                    :, n_feat * i + 4 : n_feat * i + 6
+                                ]
                                 a0_t1 = x_t0[:, 4:6]
                             else:
                                 current_acc = (x_t0[:, 2:4] - current_vel) / fs
@@ -670,7 +705,9 @@ class RNN_GAUSS(nn.Module):
                         state_in0 = torch.zeros(batchSize, 0).to(device)
 
                     state_in = y_t
-                    enc_in = torch.cat([x_t, state_in0, state_in, h[i][n][-1]], 1)
+                    enc_in = torch.cat(
+                        [x_t, state_in0, state_in, h[i][n][-1]], 1
+                    )
 
                     dec_t = self.dec[i](h[i][n][-1])
                     if self.batchnorm:
@@ -688,15 +725,14 @@ class RNN_GAUSS(nn.Module):
                             dec_mean_t.shape
                         ).to(device)
                     # objective function
-                    out["L_rec"][n] += nll_gauss(dec_mean_t, dec_std_t, x_t, Sum)
-                    out["pulse_flag"][n] += nll_gauss(
-                        dec_mean_t[:, 2], dec_std_t[:, 2], next_pulse, Sum
+                    out["L_rec"][n] += nll_gauss(
+                        dec_mean_t, dec_std_t, x_t, Sum
                     )
 
                     # body constraint
                     # acc
                     if self.dataset == "bat":
-                        v_t1 = dec_mean_t[:, :3]
+                        v_t1 = dec_mean_t[:, :2]
                         next_pos = current_pos + v_t1 * fs
                     elif acc == 1 or acc == 3:
                         v_t1 = dec_mean_t[:, 2:4]
@@ -746,7 +782,9 @@ class RNN_GAUSS(nn.Module):
                             ].clone()
                             a_t2 = (v0_t3 - v0_t2) / fs
                     elif n_feat == 2:
-                        p0_t4 = states[t + 4][i][:, n_feat * i : n_feat * i + 2].clone()
+                        p0_t4 = states[t + 4][i][
+                            :, n_feat * i : n_feat * i + 2
+                        ].clone()
                         v0_t3 = (p0_t4 - p0_t3) / fs
                         a_t2 = (v0_t3 - v0_t2) / fs
 
@@ -755,7 +793,9 @@ class RNN_GAUSS(nn.Module):
                         prediction_all[:, i, :] = dec_mean_t[:, :x_dim]
 
                         # error (not used when backward)
-                        out2["e_pos"][n] += batch_error(next_pos, x_t0[:, :2], Sum)
+                        out2["e_pos"][n] += batch_error(
+                            next_pos, x_t0[:, :2], Sum
+                        )
                         out2["e_vel"][n] += batch_error(v_t1, v0_t1, Sum)
 
                         if burn_in == len_time:
@@ -776,9 +816,13 @@ class RNN_GAUSS(nn.Module):
 
                         out2["e_acc"][n] += batch_error(a_t1, a0_t1, Sum)
                         out2["e_jrk"][n] += batch_error(a_t1, a_t2, Sum)
-                        out2["a_acc"][n] += batch_error(a_t1, [], Sum, diff=False)
+                        out2["a_acc"][n] += batch_error(
+                            a_t1, [], Sum, diff=False
+                        )
                         if rollout and self.in_out:  # for acc == 3, TBD
-                            states[n][t + 1][i] = torch.cat([next_pos, v_t1], dim=1)
+                            states[n][t + 1][i] = torch.cat(
+                                [next_pos, v_t1], dim=1
+                            )
                         del current_pos, current_vel, next_pos
 
                     _, h[i][n] = self.rnn[i](enc_in.unsqueeze(0), h[i][n])

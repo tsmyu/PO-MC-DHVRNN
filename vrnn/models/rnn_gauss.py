@@ -705,6 +705,8 @@ class RNN_GAUSS(nn.Module):
                         state_in0 = torch.zeros(batchSize, 0).to(device)
 
                     state_in = y_t
+                    state_in.pop(7)
+                    state_in.pop(6)
                     enc_in = torch.cat(
                         [x_t, state_in0, state_in, h[i][n][-1]], 1
                     )
@@ -830,9 +832,11 @@ class RNN_GAUSS(nn.Module):
                 # role out
                 if t >= burn_in and not self.in_out:  # rollout:
                     for i in range(n_agents):
+                        y_t_pre = states_n[n][t - 1][i].clone()
                         y_t = states_n[n][t][i].clone()  # state
                         y_t1i = states_n[n][t + 1][i].clone()
                         states_n[n][t + 1][i] = roll_out(
+                            y_t_pre,
                             y_t,
                             y_t1i,
                             prediction_all,

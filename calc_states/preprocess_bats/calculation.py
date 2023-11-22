@@ -133,7 +133,7 @@ def rotation(x: list, y: list):
     """
     座標を±40°回転
     """
-    rads = [np.deg2rad(round(j * 0.1, 1)) for j in range(-400, 403, 3.2)]
+    rads = [np.deg2rad(round(j * 0.01, 1)) for j in range(-4000, 4000, 32)]
     rot_x = []
     rot_y = []
     length = 5

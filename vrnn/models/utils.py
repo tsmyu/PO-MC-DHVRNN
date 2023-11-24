@@ -319,8 +319,12 @@ def roll_out(
                     dim,
                     pulse_flag,
                 )
-
             role_long[idx, 4] = theta
+            if prev_feature[idx, 7] >= 200:
+                env_state[:62] = 2
+                env_state[188:] = 2
+            elif prev_feature[idx, 7] >= 100 and prev_feature[idx, 7] < 200:
+                pass
             role_long[idx, 8:] = torch.tensor(env_state)
         role_long[:, 5:8] = prev_feature[:, 5:8]
     elif acc == 4:

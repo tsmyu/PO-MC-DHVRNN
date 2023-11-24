@@ -136,7 +136,7 @@ def calc_states(
     else:
         cross_distance = [2.0 for i in range(len(pos_x[0]))]
 
-    return theta, cross_distance
+    return theta, np.array(cross_distance)
 
 
 def calc_actions(indf):

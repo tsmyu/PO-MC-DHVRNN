@@ -20,6 +20,7 @@ from vrnn.models.utils import (
     roll_out,
     sample_gumbel,
     sample_gumbel_softmax,
+    th_delete,
 )
 import torch.nn.functional as F
 
@@ -309,8 +310,7 @@ class RNN_GAUSS(nn.Module):
 
                 # RNN
                 state_in = y_t  ### action + state
-                state_in.pop(7)
-                state_in.pop(6)
+                state_in = th_delete(state_in, [6, 7])
                 enc_in = torch.cat([x_t, state_in0, state_in, h[i][-1]], 1)
 
                 dec_t = self.dec[i](h[i][-1])
@@ -402,7 +402,7 @@ class RNN_GAUSS(nn.Module):
                     prediction_all[:, i, :] = dec_mean_t[:, :x_dim]
 
                     # error (not used when backward)
-                    print(type(next_pos), type(x_t0[:, :2]))
+
                     out2["e_pos"] += batch_error(next_pos, x_t0[:, :2])
                     out2["e_vel"] += batch_error(v_t1, v0_t1)
 
@@ -705,8 +705,7 @@ class RNN_GAUSS(nn.Module):
                         state_in0 = torch.zeros(batchSize, 0).to(device)
 
                     state_in = y_t
-                    state_in.pop(7)
-                    state_in.pop(6)
+                    state_in = th_delete(state_in, [6, 7])
                     enc_in = torch.cat(
                         [x_t, state_in0, state_in, h[i][n][-1]], 1
                     )

@@ -1,5 +1,7 @@
 import torch
 import math
+import calc_states.preprocess_bat as preprocess_bat
+from calc_states.preprocess_bats import *
 
 
 ######################################################################
@@ -317,8 +319,9 @@ def roll_out(
                     dim,
                     pulse_flag,
                 )
+
             role_long[idx, 4] = theta
-            role_long[idx, 8:] = env_state
+            role_long[idx, 8:] = torch.tensor(env_state)
         role_long[:, 5:8] = prev_feature[:, 5:8]
     elif acc == 4:
         role_long[:, dim : dim * 2] = (
@@ -396,6 +399,16 @@ def roll_out(
 ######################################################################
 ########################## MISCELLANEOUS #############################
 ######################################################################
+
+
+def th_delete(tensor, indices):
+    mask = torch.ones(tensor.size(), dtype=torch.bool)
+
+    mask[:, indices] = False
+
+    return torch.reshape(
+        tensor[mask], (tensor.size(0), tensor.size(1) - len(indices))
+    )
 
 
 def one_hot_encode(inds, N):

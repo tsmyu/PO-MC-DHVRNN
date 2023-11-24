@@ -593,6 +593,7 @@ if __name__ == "__main__":
     numOfPrevSteps = 1
     totalTimeSteps_test = totalTimeSteps
     states_num = 251
+    delete_num = 2  # Env and Bat
     if args.in_sma:
         # [X, Y, Vx, Vy, theta, pulse_flag, Env, Bat, states]
         n_feat = 8 + states_num
@@ -848,7 +849,7 @@ if __name__ == "__main__":
     # args.normalize = normalize # default: False
     # args.cont = False # continue training previous best model
     args.x_dim = outputlen0  # output
-    args.y_dim = featurelen  # input
+    args.y_dim = featurelen - delete_num  # input
     args.m_dim = 90 if args.data == "nba" else 34 * 22  # 26*17*4#34*22*4
     args.z_dim = 64
     args.h_dim = 64  # 128

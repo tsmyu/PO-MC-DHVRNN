@@ -11,17 +11,12 @@ matplotlib.use("Agg")
 # from natsort import natsorted
 print(os.getcwd())
 
-from preprocess_bats.calculation import (
+from calc_states.preprocess_bats.calculation import (
     vel,
     horizon_angle,
     vertical_angle,
     rotation,
     cross_point,
-)
-
-from preprocess_bats.cut_down import (
-    cut_for_episode,
-    dwnsmp,
 )
 
 
@@ -126,22 +121,20 @@ def calc_states(
     dim,
     pulse_flag,
 ):
-    env_name = prev_f[6]
+    env_name = int(prev_f[6])
     if dim == 3:
         print("not concider in 3-dim yet")
         exit()
-    print("calc angle................")
     theta = calc_angles(prev_f, prev_point, next_point, dim)
-
     # calc rotation point
-    print("calc rotation point.......")
     pos_x, pos_z = calc_rotation_point(prev_f, next_point, dim)
-    # calc cross point
-    print("calc cross points.........")
     if pulse_flag:
+        print("pulse emit!!")
+
+        # calc cross point
         cross_distance = calc_cross_points(prev_f, pos_x, pos_z, env_name)
     else:
-        cross_distance = [2.0 for i in range(len(pos_x))]
+        cross_distance = [2.0 for i in range(len(pos_x[0]))]
 
     return theta, cross_distance
 
@@ -178,6 +171,9 @@ def calc_bat_states(
     prev_f = [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state(251dim)]
     next_point = [X, Y]
     """
+    prev_f = prev_f.to("cpu").detach().numpy().copy()
+    prev_point = prev_point.to("cpu").detach().numpy().copy()
+    next_point = next_point.to("cpu").detach().numpy().copy()
     theta, cross_distance = calc_states(
         prev_f,
         prev_point,

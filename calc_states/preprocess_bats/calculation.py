@@ -1,6 +1,7 @@
 import numpy as np
+import torch
 import json
-from preprocess_bats.obstacle_information.wall import (
+from calc_states.preprocess_bats.obstacle_information.wall import (
     wall_x,
     wall_y,
 )
@@ -63,11 +64,32 @@ def calc_obs_area(obs_point_dict):
 # 2023の障害物情報
 obs_point_dict = json.load(
     open(
-        "preprocess_bats/obstacle_information/2023/Envs.json",
+        "calc_states/preprocess_bats/obstacle_information/2023/Envs.json",
         "r",
     )
 )
 obs_area_dict = calc_obs_area(obs_point_dict)
+
+
+def get_env_name(env_num):
+    if env_num == 1:
+        env_name = "Env1"
+    elif env_num == 2:
+        env_name = "Env2"
+    elif env_num == 3:
+        env_name = "Env3"
+    elif env_num == 4:
+        env_name = "Env4"
+    elif env_num == 5:
+        env_name = "Env5"
+    elif env_num == 6:
+        env_name = "Env6"
+    elif env_num == 7:
+        env_name = "Env7"
+    elif env_num == 8:
+        env_name = "Test"
+
+    return env_name
 
 
 def vel(P, dt=0.01):
@@ -133,7 +155,7 @@ def rotation(x: list, y: list):
     """
     座標を±40°回転
     """
-    rads = [np.deg2rad(round(j * 0.01, 1)) for j in range(-4000, 4000, 32)]
+    rads = [np.deg2rad(round(j * 0.01, 1)) for j in range(-4000, 4032, 32)]
     rot_x = []
     rot_y = []
     length = 5
@@ -177,43 +199,43 @@ def cross_point(
     y: list,
     rot_x: list,
     rot_y: list,
-    env_name: str,
+    env_num: str,
 ):
     """
     交点までの距離を算出
     """
+    env_name = get_env_name(env_num)
     obs_x_list = obs_area_dict["wall"]["x"] + obs_area_dict[env_name]["x"]
     obs_y_list = obs_area_dict["wall"]["y"] + obs_area_dict[env_name]["y"]
 
     cross_alldistance = []
     for i, (x0, y0) in enumerate(zip(x, y)):  ### bat position
         cross_subdistance = []
-        if i <= len(x) - 2:
-            for x1, y1 in zip(rot_x[i], rot_y[i]):  ### 201
-                first_dis = 10
-                for j in range(len(obs_x_list)):
-                    for k in range(len(obs_x_list[0]) - 1):
-                        x2 = obs_x_list[j][k]
-                        y2 = obs_y_list[j][k]
-                        x3 = obs_x_list[j][k + 1]
-                        y3 = obs_y_list[j][k + 1]
-                        r = calc_cross_point(
-                            x0,
-                            y0,
-                            x1,
-                            y1,
-                            x2,
-                            y2,
-                            x3,
-                            y3,
-                        )
-                        if r < first_dis:
-                            first_dis = r
-                        else:
-                            pass
-                if first_dis == 10:
-                    first_dis = 0
-                cross_subdistance.append(first_dis)
-            cross_alldistance.append(cross_subdistance)
+        for x1, y1 in zip(rot_x[i], rot_y[i]):  ### 251
+            first_dis = 10
+            for j in range(len(obs_x_list)):
+                for k in range(len(obs_x_list[0]) - 1):
+                    x2 = obs_x_list[j][k]
+                    y2 = obs_y_list[j][k]
+                    x3 = obs_x_list[j][k + 1]
+                    y3 = obs_y_list[j][k + 1]
+                    r = calc_cross_point(
+                        x0,
+                        y0,
+                        x1,
+                        y1,
+                        x2,
+                        y2,
+                        x3,
+                        y3,
+                    )
+                    if r < first_dis:
+                        first_dis = r
+                    else:
+                        pass
+            if first_dis == 10:
+                first_dis = 0
+            cross_subdistance.append(first_dis)
+        cross_alldistance.append(cross_subdistance)
 
     return cross_alldistance

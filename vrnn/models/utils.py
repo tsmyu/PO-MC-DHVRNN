@@ -1,7 +1,7 @@
 import torch
 import math
-
-from calc_states import preprocess_bat
+import calc_states.preprocess_bat as preprocess_bat
+from calc_states.preprocess_bats import *
 
 
 ######################################################################
@@ -119,10 +119,7 @@ def entropy_gauss(std, scale=1):
 def batch_error(predict, true, Sum=True, sqrt=True, diff=True):
     # error = torch.sum(torch.sum((predict[:,:2] - true[:,:2]),1))
     if diff:
-        error = torch.sum(
-            (predict[:, :2] - true[:, :2]).pow(2),
-            1,
-        )
+        error = torch.sum((predict[:, :2] - true[:, :2]).pow(2), 1)
     else:
         error = torch.sum(predict[:, :2].pow(2), 1)
     if sqrt:
@@ -243,9 +240,8 @@ def roll_out(
     next_feature = y_t_1
     dim_x = prediction_all.shape[2]
     if acc == 0:  # vel
-        next_vel_pulse = prediction_all[:, :, :dim_x]
-        dim_vel_pulse = dim_x
-        dim_vel = dim_vel_pulse - 1
+        next_vel = prediction_all
+        dim = dim_x
     elif acc == 1 or acc == -1 or acc == 3:  # pos,vel,(acc)
         error("not modified yet. dim should be defined")  # TBD
         next_pos = prediction_all[:, :, :2]
@@ -283,35 +279,21 @@ def roll_out(
     if acc >= 2:
         role_long[:, dim * 2 :] = next_acc[:, roleOrder, :]
     if acc >= 0 and acc < 4:
-        # bat
-        # [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state]
-        role_long[:, dim_vel : dim_vel * 2] = next_vel_pulse[
-            :, roleOrder, :dim_vel
-        ]
-        role_long[:, dim_vel_pulse * 2] = next_vel_pulse[
-            :, roleOrder, dim_vel_pulse
-        ]
-
+        role_long[:, dim : dim * 2] = next_vel[:, roleOrder, :]
     if acc == 1 or acc == 3 or acc == -1:
         error("not modified yet")  # TBD
         role_long[:, :dim] = next_pos[:, roleOrder, :]
     elif acc == 0 or acc == 2:
-        # bat
-        role_long[:, 0:dim_vel] = (
-            prev_feature[
-                :,
-                roleOrder * n_feat : (roleOrder * n_feat + dim_vel),
-            ]
+        role_long[:, 0:dim] = (
+            prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
             + prev_feature[
-                :,
-                roleOrder * n_feat
-                + dim_vel : (roleOrder * n_feat + dim_vel * 2),
+                :, roleOrder * n_feat + dim : (roleOrder * n_feat + dim * 2)
             ]
             * fs
         )
         for idx, prev_f in enumerate(prev_feature):
-            next_point = role_long[idx][:dim_vel]
-            prev_point = prev_prev_faeture[idx][:dim_vel]
+            next_point = role_long[idx][:dim]
+            prev_point = prev_prev_faeture[idx][:dim]
             # [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state]
             if prev_f[5] >= 0.5:
                 pulse_flag = True
@@ -322,7 +304,7 @@ def roll_out(
                     prev_f,
                     prev_point,
                     next_point,
-                    dim_vel,
+                    dim,
                     pulse_flag,
                 )
             else:
@@ -334,33 +316,31 @@ def roll_out(
                     prev_f,
                     prev_point,
                     next_point,
-                    dim_vel,
+                    dim,
                     pulse_flag,
                 )
             role_long[idx, 4] = theta
-            role_long[idx, 8:] = env_state
+            if prev_feature[idx, 7] >= 200:
+                env_state[:62] = 2
+                env_state[188:] = 2
+            elif prev_feature[idx, 7] >= 100 and prev_feature[idx, 7] < 200:
+                pass
+            role_long[idx, 8:] = torch.tensor(env_state)
         role_long[:, 5:8] = prev_feature[:, 5:8]
-
     elif acc == 4:
         role_long[:, dim : dim * 2] = (
             prev_feature[
-                :,
-                roleOrder * n_feat + 2 : (roleOrder * n_feat + dim * 2),
+                :, roleOrder * n_feat + 2 : (roleOrder * n_feat + dim * 2)
             ]
             + prev_feature[
-                :,
-                roleOrder * n_feat + dim * 2 : (roleOrder * n_feat + dim * 3),
+                :, roleOrder * n_feat + dim * 2 : (roleOrder * n_feat + dim * 3)
             ]
             * fs
         )
         role_long[:, 0:dim] = (
-            prev_feature[
-                :,
-                roleOrder * n_feat : (roleOrder * n_feat + dim),
-            ]
+            prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
             + prev_feature[
-                :,
-                roleOrder * n_feat + dim : (roleOrder * n_feat + dim * 2),
+                :, roleOrder * n_feat + dim : (roleOrder * n_feat + dim * 2)
             ]
             * fs
         )
@@ -368,7 +348,6 @@ def roll_out(
     new_matrix[:, roleOrder, :] = role_long
 
     # fix all teammates vector
-    # not use for bat now
     for teammate in teammateList:
         player = legacy_next[:, teammate, :]
         if (
@@ -380,13 +359,7 @@ def roll_out(
                 player[:, dim * 2 :] = next_acc[:, teamRoleInd, :]
 
             if acc >= 0 and acc < 4:
-                player[:, dim_vel : dim_vel * 2] = next_vel_pulse[
-                    :, teamRoleInd, :dim_vel
-                ]
-                player[:, dim_vel_pulse * 2] = next_vel_pulse[
-                    :, teamRoleInd, dim_vel_pulse
-                ]
-
+                player[:, dim : dim * 2] = next_vel[:, teamRoleInd, :]
             elif acc == 4:
                 player[:, dim : dim * 2] = (
                     prev_feature[
@@ -407,8 +380,7 @@ def roll_out(
             else:
                 player[:, 0:dim] = (
                     prev_feature[
-                        :,
-                        teamRoleInd * n_feat : (teamRoleInd * n_feat + dim),
+                        :, teamRoleInd * n_feat : (teamRoleInd * n_feat + dim)
                     ]
                     + prev_feature[
                         :,
@@ -422,8 +394,7 @@ def roll_out(
 
     # output
     new_feature_vector = torch.reshape(
-        new_matrix,
-        (batchSize, n_all_agents * n_feat),
+        new_matrix, (batchSize, n_all_agents * n_feat)
     )
     # import pdb; pdb.set_trace()
     return new_feature_vector
@@ -432,6 +403,16 @@ def roll_out(
 ######################################################################
 ########################## MISCELLANEOUS #############################
 ######################################################################
+
+
+def th_delete(tensor, indices):
+    mask = torch.ones(tensor.size(), dtype=torch.bool)
+
+    mask[:, indices] = False
+
+    return torch.reshape(
+        tensor[mask], (tensor.size(0), tensor.size(1) - len(indices))
+    )
 
 
 def one_hot_encode(inds, N):

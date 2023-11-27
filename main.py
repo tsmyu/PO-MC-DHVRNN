@@ -1,16 +1,10 @@
 from matplotlib import image
-from sequencing import (
-    get_sequences,
-    get_bat_sequence_data,
-)
+from sequencing import get_sequences, get_bat_sequence_data
 from utilities import *
 from helpers import *
 from preprocessing import *
 from vrnn.datasets import GeneralDataset
-from vrnn.models.utils import (
-    num_trainable_params,
-    roll_out,
-)
+from vrnn.models.utils import num_trainable_params, roll_out
 from vrnn.models import load_model
 from datetime import datetime
 from math import sqrt
@@ -28,15 +22,12 @@ import random
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.model_selection import (
-    train_test_split,
-)
+from sklearn.model_selection import train_test_split
 import hmmlearn
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-import torch.profiler
 
 # from model_wrapper import ModelWrapper
 
@@ -60,12 +51,7 @@ parser.add_argument("--n_GorS", type=int, required=True)
 parser.add_argument("--n_roles", type=int, required=True)
 parser.add_argument("--val_devide", type=int, default=10)
 parser.add_argument("--hmm_iter", type=int, default=500)
-parser.add_argument(
-    "-t_step",
-    "--totalTimeSteps",
-    type=int,
-    default=796,
-)
+parser.add_argument("-t_step", "--totalTimeSteps", type=int, default=356)
 parser.add_argument("--overlap", type=int, default=40)
 parser.add_argument("-k", "--k_nearest", type=int, default=0)
 parser.add_argument("--batchsize", type=int, required=True)
@@ -110,8 +96,6 @@ game_dir = main_dir + "data_" + args.data + "/"
 Data = LoadData(main_dir, game_dir, args.data)
 path_init = "./weights/"  # './weights_vrnn/init/'
 
-pulse_loss_weight = 500.0
-
 
 def run_epoch(train, rollout, hp):
     loader = (
@@ -124,10 +108,8 @@ def run_epoch(train, rollout, hp):
 
     losses = {}
     losses2 = {}
-    for batch_idx, (
-        data,
-        macro_intents,
-    ) in enumerate(loader):
+    for batch_idx, (data, macro_intents) in enumerate(loader):
+        # print(str(batch_idx))
         d1 = {"batch_idx": batch_idx}
         hp.update(d1)
 
@@ -142,26 +124,13 @@ def run_epoch(train, rollout, hp):
 
         if train == 1:
             if "MACRO" in args.model:
-                (
-                    batch_losses,
-                    batch_losses2,
-                ) = model(
-                    data,
-                    rollout,
-                    train,
-                    macro_intents,
-                    hp=hp,
+                batch_losses, batch_losses2 = model(
+                    data, rollout, train, macro_intents, hp=hp
                 )
             else:
-                (
-                    batch_losses,
-                    batch_losses2,
-                ) = model(data, rollout, train, hp=hp)
+                batch_losses, batch_losses2 = model(data, rollout, train, hp=hp)
             optimizer.zero_grad()
             total_loss = sum(batch_losses.values())
-            # total_loss = (
-            #     batch_losses["L_rec"] + batch_losses["pulse_flag"] * pulse_loss_weight
-            # )
             total_loss.backward()
             if hp["model"] != "RNN_ATTENTION":
                 nn.utils.clip_grad_norm_(model.parameters(), clip)
@@ -169,15 +138,8 @@ def run_epoch(train, rollout, hp):
         else:
             if "MACRO" in args.model:
                 if hp["pretrain"]:
-                    (
-                        batch_losses,
-                        batch_losses2,
-                    ) = model(
-                        data,
-                        rollout,
-                        train,
-                        macro_intents,
-                        hp=hp,
+                    batch_losses, batch_losses2 = model(
+                        data, rollout, train, macro_intents, hp=hp
                     )
                 else:
                     (
@@ -200,18 +162,8 @@ def run_epoch(train, rollout, hp):
                     # print(prediction_list)
                     # writer.add_scalar('test/prediction', x_pre, y_pre)
             else:
-                (
-                    _,
-                    _,
-                    _,
-                    batch_losses,
-                    batch_losses2,
-                    prediction,
-                ) = model.sample(
-                    data,
-                    rollout=True,
-                    burn_in=hp["burn_in"],
-                    L_att=hp["L_att"],
+                _, _, _, batch_losses, batch_losses2, prediction = model.sample(
+                    data, rollout=True, burn_in=hp["burn_in"], L_att=hp["L_att"]
                 )
                 # x_pre = float(prediction[1][4].item())
                 # y_pre = float(prediction[1][5].item())
@@ -292,105 +244,39 @@ def run_sanity(args, game_files):
                 next_vel0 = unnormalize(GT[i, :, t + 1, 2:4], args)
             elif args.in_sma:
                 current_pos = unnormalize(
-                    data[
-                        i,
-                        :,
-                        t,
-                        n_feat * i + 0 : n_feat * i + 2,
-                    ],
-                    args,
+                    data[i, :, t, n_feat * i + 0 : n_feat * i + 2], args
                 )
                 current_vel = unnormalize(
-                    data[
-                        i,
-                        :,
-                        t,
-                        n_feat * i + 2 : n_feat * i + 4,
-                    ],
-                    args,
+                    data[i, :, t, n_feat * i + 2 : n_feat * i + 4], args
                 )
                 current_acc = unnormalize(
-                    data[
-                        i,
-                        :,
-                        t,
-                        n_feat * i + 4 : n_feat * i + 6,
-                    ],
-                    args,
+                    data[i, :, t, n_feat * i + 4 : n_feat * i + 6], args
                 )
                 next_pos0 = unnormalize(
-                    GT[
-                        i,
-                        :,
-                        t + 1,
-                        n_feat * i + 0 : n_feat * i + 2,
-                    ],
-                    args,
+                    GT[i, :, t + 1, n_feat * i + 0 : n_feat * i + 2], args
                 )
                 next_vel0 = unnormalize(
-                    GT[
-                        i,
-                        :,
-                        t + 1,
-                        n_feat * i + 2 : n_feat * i + 4,
-                    ],
-                    args,
+                    GT[i, :, t + 1, n_feat * i + 2 : n_feat * i + 4], args
                 )
                 next_acc0 = unnormalize(
-                    GT[
-                        i,
-                        :,
-                        t + 1,
-                        n_feat * i + 4 : n_feat * i + 6,
-                    ],
-                    args,
+                    GT[i, :, t + 1, n_feat * i + 4 : n_feat * i + 6], args
                 )
                 if t > 0:
                     past_vel = unnormalize(
-                        data[
-                            i,
-                            :,
-                            t - 1,
-                            n_feat * i + 2 : n_feat * i + 4,
-                        ],
-                        args,
+                        data[i, :, t - 1, n_feat * i + 2 : n_feat * i + 4], args
                     )
             else:
                 current_pos = unnormalize(
-                    data[
-                        i,
-                        :,
-                        t,
-                        n_feat * i + 3 : n_feat * i + 5,
-                    ],
-                    args,
+                    data[i, :, t, n_feat * i + 3 : n_feat * i + 5], args
                 )
                 current_vel = unnormalize(
-                    data[
-                        i,
-                        :,
-                        t,
-                        n_feat * i + 5 : n_feat * i + 7,
-                    ],
-                    args,
+                    data[i, :, t, n_feat * i + 5 : n_feat * i + 7], args
                 )
                 next_pos0 = unnormalize(
-                    GT[
-                        i,
-                        :,
-                        t + 1,
-                        n_feat * i + 3 : n_feat * i + 5,
-                    ],
-                    args,
+                    GT[i, :, t + 1, n_feat * i + 3 : n_feat * i + 5], args
                 )
                 next_vel0 = unnormalize(
-                    GT[
-                        i,
-                        :,
-                        t + 1,
-                        n_feat * i + 5 : n_feat * i + 7,
-                    ],
-                    args,
+                    GT[i, :, t + 1, n_feat * i + 5 : n_feat * i + 7], args
                 )
 
             losses["L_jrk"] += batch_error(current_acc, next_acc0)
@@ -415,17 +301,11 @@ def run_sanity(args, game_files):
                     data[i, :, t + 1, :2] = np.concatenate([next_pos], 1)
                 elif args.in_sma:
                     data[
-                        i,
-                        :,
-                        t + 1,
-                        n_feat * i + 0 : n_feat * i + 2,
+                        i, :, t + 1, n_feat * i + 0 : n_feat * i + 2
                     ] = np.concatenate([next_pos], 1)
                 else:
                     data[
-                        i,
-                        :,
-                        t + 1,
-                        n_feat * i + 3 : n_feat * i + 5,
+                        i, :, t + 1, n_feat * i + 3 : n_feat * i + 5
                     ] = np.concatenate([next_pos], 1)
     # del data
     losses["e_pos"] /= args.horizon - burn_in
@@ -489,10 +369,7 @@ def unnormalize(data, args):
             feet_m = 0.3048
             LENGTH = 94 * feet_m
             WIDTH = 50 * feet_m
-            SHIFT0 = [
-                0,
-                0,
-            ]  # [47*feet_m,25*feet_m]
+            SHIFT0 = [0, 0]  # [47*feet_m,25*feet_m]
         elif args.dataset == "soccer":
             LENGTH = 52.5
             WIDTH = 34
@@ -517,12 +394,7 @@ def label_macro_intents(data, window_size=0):
                             Otherwise, will label stationary positions as macro-intents.
     """
 
-    (
-        N_AGENTS,
-        N,
-        SEQUENCE_LENGTH,
-        SEQUENCE_DIMENSION,
-    ) = data.shape
+    N_AGENTS, N, SEQUENCE_LENGTH, SEQUENCE_DIMENSION = data.shape
     n_all_agents = 10 if N_AGENTS == 5 else 22
     n_feat = int((SEQUENCE_DIMENSION - 4) / n_all_agents)
 
@@ -539,9 +411,7 @@ def label_macro_intents(data, window_size=0):
                 data_in = data[0, i, :, 2 * k + 3 : 2 * k + 5]
             if window_size > 0:
                 macro_intents_all[i, :, k] = compute_macro_intents_fixed(
-                    data_in,
-                    N_AGENTS,
-                    window=window_size,
+                    data_in, N_AGENTS, window=window_size
                 )
             else:
                 macro_intents_all[i, :, k] = compute_macro_intents_stationary(
@@ -584,16 +454,8 @@ def get_macro_intent(position, N_AGENTS, t):
     eps = 1e-4  # hack to make calculating macro_x and macro_y cleaner
 
     if N_AGENTS == 5:
-        x = bound(
-            position[0],
-            0,
-            N_MACRO_X * MACRO_SIZE - eps,
-        )
-        y = bound(
-            position[1],
-            0,
-            N_MACRO_Y * MACRO_SIZE - eps,
-        )
+        x = bound(position[0], 0, N_MACRO_X * MACRO_SIZE - eps)
+        y = bound(position[1], 0, N_MACRO_Y * MACRO_SIZE - eps)
         macro_x = int(x / MACRO_SIZE)
         macro_y = int(y / MACRO_SIZE)
         macro = macro_x * N_MACRO_Y + macro_y
@@ -719,9 +581,9 @@ if __name__ == "__main__":
 
     if acc == 0 or acc == -1 or acc == 4:  # vel/pos/acc only
         if args.in_sma:
-            outputlen0 = 3
+            outputlen0 = 2
         else:
-            outputlen0 = 4
+            outputlen0 = 3
     elif acc == 3:  # all
         outputlen0 = 6
     else:
@@ -735,7 +597,6 @@ if __name__ == "__main__":
     if args.in_sma:
         # [X, Y, Vx, Vy, theta, pulse_flag, Env, Bat, states]
         n_feat = 8 + states_num
-
     else:
         # [X, Y, Z, Vx, Vy, Vz, theta, pulse_flag, Env, Bat, states]
         n_feat = 10 + states_num
@@ -762,42 +623,25 @@ if __name__ == "__main__":
     except:
         raise FileExistsError("test pickle is not exist.")
 
-    (
-        X_train_all,
-        Y_train_all,
-    ) = get_bat_sequence_data(
+    X_train_all, Y_train_all = get_bat_sequence_data(
         X_train_all, args.in_sma
     )  # [role][seqs][steps,feats]
 
     len_seqs = len(X_train_all[0])
     X_ind = np.arange(len_seqs)
     ind_train, ind_val, _, _ = train_test_split(
-        X_ind,
-        X_ind,
-        test_size=1 / val_devide,
-        random_state=42,
+        X_ind, X_ind, test_size=1 / val_devide, random_state=42
     )
 
     featurelen = X_train_all[0][0].shape[1]
     len_seqs_tr = len(ind_train)
+    # print(len_seqs_tr)
     offSet_tr = math.floor(len_seqs_tr / batchSize)
     batchSize_val = len(ind_val)
 
-    X_all = np.zeros(
-        [
-            n_roles,
-            len(ind_train),
-            totalTimeSteps + 4,
-            featurelen,
-        ]
-    )
+    X_all = np.zeros([n_roles, len(ind_train), totalTimeSteps + 4, featurelen])
     X_val_all = np.zeros(
-        [
-            n_roles,
-            len(ind_val),
-            totalTimeSteps + 4,
-            featurelen,
-        ]
+        [n_roles, len(ind_val), totalTimeSteps + 4, featurelen]
     )
     for i, X_train in enumerate(X_train_all):
         i_tr = 0
@@ -821,10 +665,7 @@ if __name__ == "__main__":
     macro_intents_val = label_macro_intents(X_val_all)
 
     # for test data-------------
-    (
-        X_test_all,
-        Y_test_all,
-    ) = get_bat_sequence_data(X_test_all, args.in_sma)
+    X_test_all, Y_test_all = get_bat_sequence_data(X_test_all, args.in_sma)
 
     if args.in_out:
         X_test_test_all = Y_test_all
@@ -842,12 +683,7 @@ if __name__ == "__main__":
     #     len_seqs_test = len(ind_test)
 
     X_test_test_all = np.zeros(
-        [
-            n_roles,
-            len_seqs_test,
-            totalTimeSteps_test + 4,
-            featurelen,
-        ]
+        [n_roles, len_seqs_test, totalTimeSteps_test + 4, featurelen]
     )
     for i, X_test in enumerate(X_test_all):
         i_te = 0
@@ -870,28 +706,11 @@ if __name__ == "__main__":
     # if offSet_tr > 0:
     # print(offSet_tr)
     for j in range(offSet_tr):
-        tmp_data = X_all[
-            :,
-            j * batchSize : (j + 1) * batchSize,
-            :,
-            :,
-        ]
-        tmp_label = macro_intents[
-            j * batchSize : (j + 1) * batchSize,
-            :,
-            :,
-        ]
-        with open(
-            game_files + "_tr" + str(j) + ".pkl",
-            "wb",
-        ) as f:
+        tmp_data = X_all[:, j * batchSize : (j + 1) * batchSize, :, :]
+        tmp_label = macro_intents[j * batchSize : (j + 1) * batchSize, :, :]
+        with open(game_files + "_tr" + str(j) + ".pkl", "wb") as f:
             pickle.dump(
-                [
-                    tmp_data,
-                    len_seqs_val,
-                    len_seqs_test,
-                    tmp_label,
-                ],
+                [tmp_data, len_seqs_val, len_seqs_test, tmp_label],
                 f,
                 protocol=4,
             )
@@ -900,29 +719,15 @@ if __name__ == "__main__":
     batchval = int(len_seqs_val / J)
     for j in range(J):
         if j < J - 1:
-            tmp_data = X_val_all[
-                :,
-                j * batchval : (j + 1) * batchval,
-                :,
-                :,
-            ]
+            tmp_data = X_val_all[:, j * batchval : (j + 1) * batchval, :, :]
             tmp_label = macro_intents_val[
-                j * batchval : (j + 1) * batchval,
-                :,
-                :,
+                j * batchval : (j + 1) * batchval, :, :
             ]
         else:
             tmp_data = X_val_all[:, j * batchval :, :, :]
             tmp_label = macro_intents_val[j * batchval :, :, :]
-        with open(
-            game_files + "_val_" + str(j) + ".pkl",
-            "wb",
-        ) as f:
-            pickle.dump(
-                [tmp_data, tmp_label],
-                f,
-                protocol=4,
-            )
+        with open(game_files + "_val_" + str(j) + ".pkl", "wb") as f:
+            pickle.dump([tmp_data, tmp_label], f, protocol=4)
     # with open(game_files_val, 'wb') as f:
     #    pickle.dump([X_val_all,macro_intents_val], f, protocol=4)
 
@@ -930,29 +735,13 @@ if __name__ == "__main__":
     batchte = int(len_seqs_test / J)
     for j in range(J):
         if j < J - 1:
-            tmp_data = X_test_test_all[
-                :,
-                j * batchte : (j + 1) * batchte,
-                :,
-                :,
-            ]
-            tmp_label = macro_intents_te[
-                j * batchte : (j + 1) * batchte,
-                :,
-                :,
-            ]
+            tmp_data = X_test_test_all[:, j * batchte : (j + 1) * batchte, :, :]
+            tmp_label = macro_intents_te[j * batchte : (j + 1) * batchte, :, :]
         else:
             tmp_data = X_test_test_all[:, j * batchte :, :, :]
             tmp_label = macro_intents_te[j * batchte :, :, :]
-        with open(
-            game_files + "_te_" + str(j) + ".pkl",
-            "wb",
-        ) as f:
-            pickle.dump(
-                [tmp_data, tmp_label],
-                f,
-                protocol=4,
-            )
+        with open(game_files + "_te_" + str(j) + ".pkl", "wb") as f:
+            pickle.dump([tmp_data, tmp_label], f, protocol=4)
     # with open(game_files_te, 'wb') as f:
     #    pickle.dump([X_test_test_all,macro_intents_te], f, protocol=4)
 
@@ -960,12 +749,9 @@ if __name__ == "__main__":
 
     print("save train and test sequences")
     with open(game_files + "_tr" + str(0) + ".pkl", "rb") as f:
-        (
-            X_all,
-            len_seqs_val,
-            len_seqs_test,
-            macro_intents,
-        ) = np.load(f, allow_pickle=True)
+        X_all, len_seqs_val, len_seqs_test, macro_intents = np.load(
+            f, allow_pickle=True
+        )
 
     # count batches
     offSet_tr = len(glob.glob(game_files + "_tr*.pkl"))
@@ -1071,7 +857,7 @@ if __name__ == "__main__":
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
-    args.burn_in = int(totalTimeSteps * 2 / 3)  # 予測に使う長さ
+    args.burn_in = int(totalTimeSteps / 3 * 2)  # 予測に使う長さ
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
     if args.data == "soccer":
@@ -1168,11 +954,7 @@ if __name__ == "__main__":
     params["total_params"] = num_trainable_params(model)
 
     # Create save path and saving parameters
-    pickle.dump(
-        params,
-        open(init_filename0 + "/params.p", "wb"),
-        protocol=2,
-    )
+    pickle.dump(params, open(init_filename0 + "/params.p", "wb"), protocol=2)
 
     # Continue a previous experiment, or start a new one
     if args.cont:
@@ -1248,12 +1030,7 @@ if __name__ == "__main__":
     # Dataset loaders
     num_workers = 1  # int(args.numProcess/2)
     kwargs = (
-        {
-            "num_workers": num_workers,
-            "pin_memory": True,
-        }
-        if args.cuda
-        else {}
+        {"num_workers": num_workers, "pin_memory": True} if args.cuda else {}
     )
     kwargs2 = {"num_workers": 4, "pin_memory": True} if args.cuda else {}
     print("num_workers:" + str(num_workers))
@@ -1283,36 +1060,27 @@ if __name__ == "__main__":
     if not TEST:
         train_loader = DataLoader(
             GeneralDataset(
-                args,
-                len_seqs_tr,
-                train=1,
-                normalize_data=args.normalize,
+                args, len_seqs_tr, train=1, normalize_data=args.normalize
             ),
             batch_size=batchSize,
             shuffle=False,
-            **kwargs,
+            **kwargs
         )
         val_loader = DataLoader(
             GeneralDataset(
-                args,
-                len_seqs_val,
-                train=0,
-                normalize_data=args.normalize,
+                args, len_seqs_val, train=0, normalize_data=args.normalize
             ),
             batch_size=batchSize_val,
             shuffle=False,
-            **kwargs2,
+            **kwargs2
         )
     test_loader = DataLoader(
         GeneralDataset(
-            args,
-            len_seqs_test,
-            train=-1,
-            normalize_data=args.normalize,
+            args, len_seqs_test, train=-1, normalize_data=args.normalize
         ),
         batch_size=batchSize_test,
         shuffle=False,
-        **kwargs2,
+        **kwargs2
     )
     print(
         "batch train: "
@@ -1377,18 +1145,11 @@ if __name__ == "__main__":
             # Remove parameters with requires_grad=False (https://github.com/pytorch/pytorch/issues/679)
             if not args.finetune:
                 optimizer = torch.optim.Adam(
-                    filter(
-                        lambda p: p.requires_grad,
-                        model.parameters(),
-                    ),
-                    lr=lr,
+                    filter(lambda p: p.requires_grad, model.parameters()), lr=lr
                 )
             else:
                 optimizer = torch.optim.SGD(
-                    filter(
-                        lambda p: p.requires_grad,
-                        model.parameters(),
-                    ),
+                    filter(lambda p: p.requires_grad, model.parameters()),
                     lr=5e-4,
                     momentum=0.9,
                 )
@@ -1406,9 +1167,7 @@ if __name__ == "__main__":
             hyperparams["L_att"] = L_att
             # hyperparams = {'model': args.model,'acc': acc,'burn_in': args.horizon,'L_att':L_att}
             train_loss, train_loss2 = run_epoch(
-                train=1,
-                rollout=False,
-                hp=hyperparams,
+                train=1, rollout=False, hp=hyperparams
             )
             print(
                 "Train:\t" + loss_str(train_loss) + "|" + loss_str(train_loss2)
@@ -1418,9 +1177,7 @@ if __name__ == "__main__":
                 hyperparams["burn_in"] = args.burn_in
                 # hyperparams = {'model': args.model,'acc': acc,'burn_in': args.burn_in,'L_att':L_att}
                 val_loss, val_loss2 = run_epoch(
-                    train=0,
-                    rollout=True,
-                    hp=hyperparams,
+                    train=0, rollout=True, hp=hyperparams
                 )
                 print(
                     "RO Val:\t" + loss_str(val_loss) + "|" + loss_str(val_loss2)
@@ -1429,9 +1186,7 @@ if __name__ == "__main__":
             else:
                 hyperparams["burn_in"] = args.horizon
                 val_loss, val_loss2 = run_epoch(
-                    train=0,
-                    rollout=False,
-                    hp=hyperparams,
+                    train=0, rollout=False, hp=hyperparams
                 )
                 print("Val:\t" + loss_str(val_loss) + "|" + loss_str(val_loss2))
 
@@ -1442,17 +1197,11 @@ if __name__ == "__main__":
 
             # for tensorboardX of train
             writer.add_scalars(
-                "train/loss for backpropagation",
-                train_loss,
-                epoch,
+                "train/loss for backpropagation", train_loss, epoch
             )
             writer.add_scalars("train/loss", train_loss2, epoch)
             # for tensorboardX of validation
-            writer.add_scalars(
-                "val/loss for backpropagation",
-                val_loss,
-                epoch,
-            )
+            writer.add_scalars("val/loss for backpropagation", val_loss, epoch)
             writer.add_scalars("val/loss", val_loss2, epoch)
 
             # Best model on test set
@@ -1561,23 +1310,13 @@ if __name__ == "__main__":
         # Sample trajectory
         samples = [
             np.zeros(
-                (
-                    args.horizon + 1,
-                    args.n_agents,
-                    len_seqs_test,
-                    featurelen,
-                )
+                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen)
             )
             for t in range(n_sample)
         ]
         samples_true = [
             np.zeros(
-                (
-                    args.horizon + 1,
-                    args.n_agents,
-                    len_seqs_test,
-                    featurelen,
-                )
+                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen)
             )
             for t in range(n_sample)
         ]
@@ -1591,12 +1330,7 @@ if __name__ == "__main__":
             )
         )
         macros = np.zeros(
-            (
-                args.horizon,
-                args.n_agents,
-                len_seqs_test,
-                n_sample,
-            )
+            (args.horizon, args.n_agents, len_seqs_test, n_sample)
         )
         loss_i = [{} for t in range(n_sample)]
         losses = {}
@@ -1606,18 +1340,12 @@ if __name__ == "__main__":
             start_time = time.time()
             if r > 0:
                 state_dict = torch.load(
-                    "{}_best.pth".format(
-                        init_pthname,
-                        params["model"],
-                    ),
+                    "{}_best.pth".format(init_pthname, params["model"]),
                     map_location=lambda storage, loc: storage,
                 )
                 model.load_state_dict(state_dict)
 
-            for batch_idx, (
-                data,
-                macro_intents,
-            ) in enumerate(loader):
+            for batch_idx, (data, macro_intents) in enumerate(loader):
                 if args.cuda:
                     data = data.cuda()  # , data_y.cuda()
                     # (batch, agents, time, feat) => (time, agents, batch, feat)
@@ -1653,14 +1381,7 @@ if __name__ == "__main__":
                     # writer.add_scalar('test/prediction_x', x_pre, i)
                     # writer.add_scalar('test/prediction_y', y_pre, i)
                 else:
-                    (
-                        sample,
-                        _,
-                        _,
-                        output,
-                        output2,
-                        prediction,
-                    ) = model.sample(
+                    sample, _, _, output, output2, prediction = model.sample(
                         data,
                         rollout=True,
                         burn_in=args.burn_in,
@@ -1724,15 +1445,9 @@ if __name__ == "__main__":
                 for key in output:  # lossesが出力、keyが
                     if batch_idx == 0 and r == 0:
                         losses[key] = np.zeros(n_sample)
-                        losses2[key] = np.zeros(
-                            (
-                                n_sample,
-                                len_seqs_test,
-                            )
-                        )
+                        losses2[key] = np.zeros((n_sample, len_seqs_test))
                     losses[key][r * n_smp_b : (r + 1) * n_smp_b] += np.sum(
-                        output[key].detach().cpu().numpy(),
-                        axis=1,
+                        output[key].detach().cpu().numpy(), axis=1
                     )
                     losses2[key][
                         r * n_smp_b : (r + 1) * n_smp_b,
@@ -1746,15 +1461,9 @@ if __name__ == "__main__":
                 for key in output2:
                     if batch_idx == 0 and r == 0:
                         losses[key] = np.zeros(n_sample)
-                        losses2[key] = np.zeros(
-                            (
-                                n_sample,
-                                len_seqs_test,
-                            )
-                        )
+                        losses2[key] = np.zeros((n_sample, len_seqs_test))
                     losses[key][r * n_smp_b : (r + 1) * n_smp_b] += np.sum(
-                        output2[key].detach().cpu().numpy(),
-                        axis=1,
+                        output2[key].detach().cpu().numpy(), axis=1
                     )
                     losses2[key][
                         r * n_smp_b : (r + 1) * n_smp_b,
@@ -1777,9 +1486,7 @@ if __name__ == "__main__":
                     + loss_str(loss_i[r * n_smp_b + i])
                 )
                 writer.add_scalars(
-                    "test/loss",
-                    loss_i[r * n_smp_b + i],
-                    r * n_smp_b + i,
+                    "test/loss", loss_i[r * n_smp_b + i], r * n_smp_b + i
                 )
 
             epoch_time = time.time() - start_time
@@ -1869,44 +1576,22 @@ if __name__ == "__main__":
             os.makedirs(experiment_path)
         if False:  # 'MACRO' in args.model:
             pickle.dump(
-                [
-                    samples,
-                    hard_att,
-                    losses2,
-                    macros,
-                ],
-                open(
-                    experiment_path + "/samples.p",
-                    "wb",
-                ),
+                [samples, hard_att, losses2, macros],
+                open(experiment_path + "/samples.p", "wb"),
                 protocol=4,
             )
         else:
             pickle.dump(
-                [
-                    samples,
-                    samples_true,
-                    hard_att,
-                    losses2,
-                ],
-                open(
-                    experiment_path + "/samples.p",
-                    "wb",
-                ),
+                [samples, samples_true, hard_att, losses2],
+                open(experiment_path + "/samples.p", "wb"),
                 protocol=4,
             )
-            print(f"save sample.p:{experiment_path}")
 
     if "MACRO" in args.model and not args.wo_macro:
         # Sample trajectory
         samples = [
             np.zeros(
-                (
-                    args.horizon + 1,
-                    args.n_agents,
-                    len_seqs_test,
-                    featurelen,
-                )
+                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen)
             )
             for t in range(n_sample)
         ]
@@ -1920,10 +1605,7 @@ if __name__ == "__main__":
             )
         )
 
-        for batch_idx, (
-            data,
-            macro_intents,
-        ) in enumerate(loader):
+        for batch_idx, (data, macro_intents) in enumerate(loader):
             if args.cuda:
                 data = data.cuda()  # , data_y.cuda()
                 # (batch, agents, time, feat) => (time, agents, batch, feat)
@@ -1936,15 +1618,7 @@ if __name__ == "__main__":
                     * batchSize_test : (batch_idx + 1)
                     * batchSize_test,
                 ] = (
-                    data[
-                        : args.horizon + 1,
-                        :,
-                        :,
-                        :,
-                    ]
-                    .detach()
-                    .cpu()
-                    .numpy()
+                    data[: args.horizon + 1, :, :, :].detach().cpu().numpy()
                 )
 
         # Save samples
@@ -1952,12 +1626,7 @@ if __name__ == "__main__":
         if not os.path.exists(experiment_path):
             os.makedirs(experiment_path)
         pickle.dump(
-            samples,
-            open(
-                experiment_path + "/samples.p",
-                "wb",
-            ),
-            protocol=4,
+            samples, open(experiment_path + "/samples.p", "wb"), protocol=4
         )
         print("GT data is saved")
     i = 0
@@ -1967,12 +1636,7 @@ if __name__ == "__main__":
         print("counter factural prediction")
         samples = [
             np.zeros(
-                (
-                    args.horizon + 1,
-                    args.n_agents,
-                    len_seqs_test,
-                    featurelen,
-                )
+                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen)
             )
             for t in range(n_sample)
         ]
@@ -1992,30 +1656,17 @@ if __name__ == "__main__":
             start_time = time.time()
             if r > 0:
                 state_dict = torch.load(
-                    "{}_best.pth".format(
-                        init_pthname,
-                        params["model"],
-                    ),
+                    "{}_best.pth".format(init_pthname, params["model"]),
                     map_location=lambda storage, loc: storage,
                 )
                 model.load_state_dict(state_dict)
-            for batch_idx, (
-                data,
-                macro_intents,
-            ) in enumerate(loader):
+            for batch_idx, (data, macro_intents) in enumerate(loader):
                 if args.cuda:
                     data = data.cuda()  # , data_y.cuda()
                     # (batch, agents, time, feat) => (time, agents, batch, feat)
                 data = data.permute(2, 1, 0, 3)
                 macro_intents = macro_intents.transpose(0, 1)
-                (
-                    sample,
-                    _,
-                    att,
-                    _,
-                    output2,
-                    prediction,
-                ) = model.sample(
+                sample, _, att, _, output2, prediction = model.sample(
                     data,
                     macro_intents,
                     rollout=True,
@@ -2060,15 +1711,9 @@ if __name__ == "__main__":
                 for key in output2:
                     if batch_idx == 0 and r == 0:
                         losses[key] = np.zeros(n_sample)
-                        losses2[key] = np.zeros(
-                            (
-                                n_sample,
-                                len_seqs_test,
-                            )
-                        )
+                        losses2[key] = np.zeros((n_sample, len_seqs_test))
                     losses[key][r * n_smp_b : (r + 1) * n_smp_b] += np.sum(
-                        output2[key].detach().cpu().numpy(),
-                        axis=1,
+                        output2[key].detach().cpu().numpy(), axis=1
                     )
                     losses2[key][
                         r * n_smp_b : (r + 1) * n_smp_b,
@@ -2097,10 +1742,7 @@ if __name__ == "__main__":
             os.makedirs(experiment_path)
         pickle.dump(
             [samples, hard_att, losses2],
-            open(
-                experiment_path + "/samples.p",
-                "wb",
-            ),
+            open(experiment_path + "/samples.p", "wb"),
             protocol=4,
         )
 

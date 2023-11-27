@@ -321,8 +321,8 @@ def roll_out(
                 )
             role_long[idx, 4] = theta
             if prev_feature[idx, 7] >= 200:
-                env_state[:62] = 2
-                env_state[188:] = 2
+                env_state[:62] = 2.0
+                env_state[188:] = 2.0
             elif prev_feature[idx, 7] >= 100 and prev_feature[idx, 7] < 200:
                 pass
             role_long[idx, 8:] = torch.tensor(env_state)

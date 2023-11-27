@@ -604,8 +604,7 @@ if __name__ == "__main__":
     # train pickle load
     try:
         with open(
-            os.path.dirname(game_files)
-            + "/bats/bat_flight_TRAIN_with_pulse.pkl",
+            os.path.dirname(game_files) + "/bats/train_kiku.pkl",
             "rb",
         ) as f:
             X_train_all = np.load(f, allow_pickle=True)
@@ -615,8 +614,7 @@ if __name__ == "__main__":
     # test pickle load
     try:
         with open(
-            os.path.dirname(game_files)
-            + "/bats/bat_flight_TEST_with_pulse.pkl",
+            os.path.dirname(game_files) + "/bats/test_kiku.pkl",
             "rb",
         ) as f:
             X_test_all = np.load(f, allow_pickle=True)

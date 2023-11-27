@@ -150,10 +150,10 @@ class RNN_GAUSS(nn.Module):
         out2 = {}
         out["L_rec"] = torch.zeros(1).to(device)
         out["pulse_flag"] = torch.zeros(1).to(device)
-        out2["e_pos"] = torch.zeros(1)
-        out2["e_vel"] = torch.zeros(1)
-        out2["e_acc"] = torch.zeros(1)
-        out2["e_jrk"] = torch.zeros(1)
+        out2["e_pos"] = torch.zeros(1).to(device)
+        out2["e_vel"] = torch.zeros(1).to(device)
+        out2["e_acc"] = torch.zeros(1).to(device)
+        out2["e_jrk"] = torch.zeros(1).to(device)
 
         n_agents = self.params["n_agents"]
         n_feat = self.params["n_feat"]  # added

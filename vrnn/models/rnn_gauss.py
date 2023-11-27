@@ -150,10 +150,10 @@ class RNN_GAUSS(nn.Module):
         out2 = {}
         out["L_rec"] = torch.zeros(1).to(device)
         out["pulse_flag"] = torch.zeros(1).to(device)
-        out2["e_pos"] = torch.zeros(1)
-        out2["e_vel"] = torch.zeros(1)
-        out2["e_acc"] = torch.zeros(1)
-        out2["e_jrk"] = torch.zeros(1)
+        out2["e_pos"] = torch.zeros(1).to(device)
+        out2["e_vel"] = torch.zeros(1).to(device)
+        out2["e_acc"] = torch.zeros(1).to(device)
+        out2["e_jrk"] = torch.zeros(1).to(device)
 
         n_agents = self.params["n_agents"]
         n_feat = self.params["n_feat"]  # added
@@ -294,7 +294,7 @@ class RNN_GAUSS(nn.Module):
 
                 if self.in_state0:
                     if self.dataset == "bat":
-                        state_in0 = current_vel  ### velocity + pulse timing
+                        state_in0 = current_vel  ### velocity
                     elif acc == 3:
                         state_in0 = torch.cat(
                             [current_pos, current_vel, current_acc], 1
@@ -418,25 +418,26 @@ class RNN_GAUSS(nn.Module):
                         )
                     del v_t1, current_pos, next_pos
             # role out
-            if t >= burn_in and not self.in_out:  # if rollout:
-                for i in range(n_agents):
-                    y_t_pre = states[t - 1][i].clone()
-                    y_t = states[t][i].clone()  # state
-                    y_t1i = states[t + 1][i].clone()
-                    states[t + 1][i] = roll_out(
-                        y_t_pre,
-                        y_t,
-                        y_t1i,
-                        prediction_all,
-                        acc,
-                        self.params["normalize"],
-                        n_agents,
-                        n_feat,
-                        ball_dim,
-                        fs,
-                        batchSize,
-                        i,
-                    )
+            if rollout:
+                if t >= burn_in and not self.in_out:  # if rollout:
+                    for i in range(n_agents):
+                        y_t_pre = states[t - 1][i].clone()
+                        y_t = states[t][i].clone()  # state
+                        y_t1i = states[t + 1][i].clone()
+                        states[t + 1][i] = roll_out(
+                            y_t_pre,
+                            y_t,
+                            y_t1i,
+                            prediction_all,
+                            acc,
+                            self.params["normalize"],
+                            n_agents,
+                            n_feat,
+                            ball_dim,
+                            fs,
+                            batchSize,
+                            i,
+                        )
 
         if burn_in == len_time:
             out2["e_pos"] /= (len_time) * n_agents
@@ -829,25 +830,26 @@ class RNN_GAUSS(nn.Module):
                     _, h[i][n] = self.rnn[i](enc_in.unsqueeze(0), h[i][n])
 
                 # role out
-                if t >= burn_in and not self.in_out:  # rollout:
-                    for i in range(n_agents):
-                        y_t_pre = states_n[n][t - 1][i].clone()
-                        y_t = states_n[n][t][i].clone()  # state
-                        y_t1i = states_n[n][t + 1][i].clone()
-                        states_n[n][t + 1][i] = roll_out(
-                            y_t_pre,
-                            y_t,
-                            y_t1i,
-                            prediction_all,
-                            acc,
-                            self.params["normalize"],
-                            n_agents,
-                            n_feat,
-                            ball_dim,
-                            fs,
-                            batchSize,
-                            i,
-                        )
+                if rollout:
+                    if t >= burn_in and not self.in_out:  # rollout:
+                        for i in range(n_agents):
+                            y_t_pre = states_n[n][t - 1][i].clone()
+                            y_t = states_n[n][t][i].clone()  # state
+                            y_t1i = states_n[n][t + 1][i].clone()
+                            states_n[n][t + 1][i] = roll_out(
+                                y_t_pre,
+                                y_t,
+                                y_t1i,
+                                prediction_all,
+                                acc,
+                                self.params["normalize"],
+                                n_agents,
+                                n_feat,
+                                ball_dim,
+                                fs,
+                                batchSize,
+                                i,
+                            )
 
         if burn_in == len_time:
             out2["e_pos"] /= (len_time) * n_agents

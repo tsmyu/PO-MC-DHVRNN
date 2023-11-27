@@ -730,18 +730,15 @@ if __name__ == "__main__":
     # We are only looking at the most recent character each time.
     numOfPrevSteps = 1
     totalTimeSteps_test = totalTimeSteps
-    states_num = 201
+    states_num = 251
+    delete_num = 2  # Env and Bat
     if args.in_sma:
-        n_feat = 6 + states_num
-        # n_feat = 6 if vel_in == 2 else 4
-        # if acc == -1:
-        #     n_feat = 2
+        # [X, Y, Vx, Vy, theta, pulse_flag, Env, Bat, states]
+        n_feat = 8 + states_num
+
     else:
-        n_feat = 9 + states_num
-    # elif args.in_out:
-    #     n_feat = 6 if vel_in == 2 else 4
-    # else:
-    #     n_feat = 15 if vel_in == 2 else 13
+        # [X, Y, Z, Vx, Vy, Vz, theta, pulse_flag, Env, Bat, states]
+        n_feat = 10 + states_num
 
     # train pickle load
     try:
@@ -1066,7 +1063,7 @@ if __name__ == "__main__":
     # args.normalize = normalize # default: False
     # args.cont = False # continue training previous best model
     args.x_dim = outputlen0  # output
-    args.y_dim = featurelen  # input
+    args.y_dim = featurelen - delete_num  # input
     args.m_dim = 90 if args.data == "nba" else 34 * 22  # 26*17*4#34*22*4
     args.z_dim = 64
     args.h_dim = 64  # 128

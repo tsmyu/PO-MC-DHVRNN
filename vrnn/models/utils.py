@@ -216,7 +216,6 @@ def calc_dist_cos_sin(rolePos, refPos, batchSize):
 def roll_out(
     y_t_pre,
     y_t,
-    y_t_1,
     prediction_all,
     acc,
     normalize,
@@ -237,11 +236,11 @@ def roll_out(
     """
     prev_prev_faeture = y_t_pre
     prev_feature = y_t
-    next_feature = y_t_1
     dim_x = prediction_all.shape[2]
     if acc == 0:  # vel
-        next_vel = prediction_all
-        dim = dim_x
+        next_vel = prediction_all[:, :, :2]
+        next_pulse_flag = prediction_all[:, :, 2]
+        dim = dim_x - 1
     elif acc == 1 or acc == -1 or acc == 3:  # pos,vel,(acc)
         error("not modified yet. dim should be defined")  # TBD
         next_pos = prediction_all[:, :, :2]
@@ -265,7 +264,7 @@ def roll_out(
     n_all_agents = n_roles
     n_feat_player = n_feat * n_all_agents
 
-    next_current = next_feature[:, 0:n_feat_player]
+    next_current = prev_feature[:, 0:n_feat_player]
 
     legacy_next = next_current.reshape(batchSize, n_all_agents, n_feat)
     new_matrix = torch.zeros((batchSize, n_all_agents, n_feat)).to(device)
@@ -326,6 +325,8 @@ def roll_out(
             elif prev_feature[idx, 7] >= 100 and prev_feature[idx, 7] < 200:
                 pass
             role_long[idx, 8:] = torch.tensor(env_state)
+        role_long[:, 2:4] = next_vel[0]
+        role_long[:, 5] = next_pulse_flag[0]
         role_long[:, 5:8] = prev_feature[:, 5:8]
     elif acc == 4:
         role_long[:, dim : dim * 2] = (

@@ -51,7 +51,7 @@ parser.add_argument("--n_GorS", type=int, required=True)
 parser.add_argument("--n_roles", type=int, required=True)
 parser.add_argument("--val_devide", type=int, default=10)
 parser.add_argument("--hmm_iter", type=int, default=500)
-parser.add_argument("-t_step", "--totalTimeSteps", type=int, default=356)
+parser.add_argument("-t_step", "--totalTimeSteps", type=int, default=796)
 parser.add_argument("--overlap", type=int, default=40)
 parser.add_argument("-k", "--k_nearest", type=int, default=0)
 parser.add_argument("--batchsize", type=int, required=True)
@@ -855,7 +855,7 @@ if __name__ == "__main__":
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
-    args.burn_in = int(totalTimeSteps / 3 * 2)  # 予測に使う長さ
+    args.burn_in = int(totalTimeSteps * 7 / 8)
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
     if args.data == "soccer":
@@ -1175,7 +1175,7 @@ if __name__ == "__main__":
                 hyperparams["burn_in"] = args.burn_in
                 # hyperparams = {'model': args.model,'acc': acc,'burn_in': args.burn_in,'L_att':L_att}
                 val_loss, val_loss2 = run_epoch(
-                    train=0, rollout=True, hp=hyperparams
+                    train=0, rollout=False, hp=hyperparams
                 )
                 print(
                     "RO Val:\t" + loss_str(val_loss) + "|" + loss_str(val_loss2)

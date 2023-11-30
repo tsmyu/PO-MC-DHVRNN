@@ -130,7 +130,7 @@ def calc_states(
     pos_x, pos_z = calc_rotation_point(prev_f, next_point, dim)
     if pulse_flag:
         # calc cross point
-        cross_distance = calc_cross_points(prev_f, pos_x, pos_z, env_name)
+        cross_distance = calc_cross_points(prev_f, pos_x, pos_z, env_name)[0]
     else:
         cross_distance = [2.0 for i in range(len(pos_x[0]))]
 

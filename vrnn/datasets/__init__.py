@@ -30,7 +30,7 @@ class GeneralDataset(Dataset):
                 data,_,_,label = cloudpickle.load(f) # ,allow_pickle=True
         else:
             J = 5 if self.n_GorS == 1 else 2
-            print(self.len_seqs)
+            # print(self.len_seqs)
             batch_no = index // int(self.len_seqs/J)
             if batch_no < J:
                 batch_index = index % int(self.len_seqs/J)

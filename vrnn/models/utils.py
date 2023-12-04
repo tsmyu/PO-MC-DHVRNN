@@ -295,7 +295,7 @@ def roll_out(
             next_point = role_long[idx][:dim]
             prev_point = prev_prev_faeture[idx][:dim]
             # [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state]
-            if prev_f[5] >= 0.5:
+            if next_feature[idx, 5] >= 0.5:
                 pulse_flag = True
                 (
                     theta,
@@ -326,7 +326,7 @@ def roll_out(
             elif prev_feature[idx, 7] >= 100 and prev_feature[idx, 7] < 200:
                 pass
             role_long[idx, 8:] = torch.tensor(env_state)
-        role_long[:, 5:8] = prev_feature[:, 5:8]
+        role_long[:, 5:8] = next_feature[:, 5:8]
     elif acc == 4:
         role_long[:, dim : dim * 2] = (
             prev_feature[

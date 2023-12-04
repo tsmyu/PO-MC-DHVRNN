@@ -604,7 +604,7 @@ if __name__ == "__main__":
     # train pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/bats/train_kiku.pkl",
+            os.path.dirname(game_files) + "/yubi_train.pkl",
             "rb",
         ) as f:
             X_train_all = np.load(f, allow_pickle=True)
@@ -614,7 +614,7 @@ if __name__ == "__main__":
     # test pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/bats/test_kiku.pkl",
+            os.path.dirname(game_files) + "/yubi_test.pkl",
             "rb",
         ) as f:
             X_test_all = np.load(f, allow_pickle=True)
@@ -855,7 +855,7 @@ if __name__ == "__main__":
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
-    args.burn_in = int(totalTimeSteps * 7 / 8)
+    args.burn_in = int(totalTimeSteps * 4 / 8)
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
     if args.data == "soccer":

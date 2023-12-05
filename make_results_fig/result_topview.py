@@ -25,11 +25,32 @@ with open(
 
 # import pdb; pdb.set_trace()
 os.makedirs("./teshima/result/pulse", exist_ok=True)
-pp = PdfPages("./teshima/result/pulse/topview.pdf")
+pp = PdfPages("./teshima/result/pulse/topview_vrnn_pulse.pdf")
 
 count = 0
 
 all_pulse = []
+
+
+def get_env_name(env_num):
+    if env_num == 1:
+        env_name = "Env1"
+    elif env_num == 2:
+        env_name = "Env2"
+    elif env_num == 3:
+        env_name = "Env3"
+    elif env_num == 4:
+        env_name = "Env4"
+    elif env_num == 5:
+        env_name = "Env5"
+    elif env_num == 6:
+        env_name = "Env6"
+    elif env_num == 7:
+        env_name = "Env7"
+    elif env_num == 8:
+        env_name = "Test"
+
+    return env_name
 
 
 for episode in range(len(data[0][0][0][0])):
@@ -63,51 +84,23 @@ for episode in range(len(data[0][0][0][0])):
 
     fig = plt.figure(figsize=(6, 6))
     ax = fig.add_subplot(111)
+    Env_name = get_env_name(data[0][0][step][0][episode][6])
 
     #############8s###############
     obs_point_dict = json.load(open("./make_results_fig/Envs.json", "r"))
-    if count <= 15:
-        obs_x = obs_point_dict["Env3"]["x"]
-        obs_y = obs_point_dict["Env3"]["y"]
 
-        ax.scatter(
-            obs_x, obs_y, marker="o", label="chain", color="#ff7f0e", s=8, zorder=1
-        )
-    elif count >= 16 and count <= 30:
-        obs_x = obs_point_dict["Env4"]["x"]
-        obs_y = obs_point_dict["Env4"]["y"]
+    obs_x = obs_point_dict[Env_name]["x"]
+    obs_y = obs_point_dict[Env_name]["y"]
 
-        ax.scatter(
-            obs_x, obs_y, marker="o", label="chain", color="#ff7f0e", s=8, zorder=1
-        )
-    elif count >= 31 and count <= 43:
-        obs_x = obs_point_dict["Env5"]["x"]
-        obs_y = obs_point_dict["Env5"]["y"]
-
-        ax.scatter(
-            obs_x, obs_y, marker="o", label="chain", color="#ff7f0e", s=8, zorder=1
-        )
-    elif count >= 44 and count <= 53:
-        obs_x = obs_point_dict["Env6"]["x"]
-        obs_y = obs_point_dict["Env6"]["y"]
-
-        ax.scatter(
-            obs_x, obs_y, marker="o", label="chain", color="#ff7f0e", s=8, zorder=1
-        )
-    # elif count >= 43 and count <= 57:
-    #     from obstacle_information.Env import obs_x, obs_y
-    #     ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=8)
-    # elif count >= 38 and count <= 47:
-    #     from obstacle_information.EnvRegular_20230421 import obs_x, obs_y
-    #     ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=8)
-
-    # for i in range(len(train_pulse_pre)):
-    #     if train_pulse_pre[i] == 1:
-    #         ax.scatter(train_x_pre[i], train_y_pre[i], color='#1f77b4', s=10)
-
-    # for i in range(len(test_pulse)):
-    #     if test_pulse[i] != 0:
-    #         ax.scatter(test_x[i], test_y[i], color='#d62728', s=10)
+    ax.scatter(
+        obs_x,
+        obs_y,
+        marker="o",
+        label="chain",
+        color="#ff7f0e",
+        s=8,
+        zorder=1,
+    )
 
     #############12s###############
     # if count <= 23:
@@ -138,7 +131,9 @@ for episode in range(len(data[0][0][0][0])):
         linestyle="--",
         zorder=2,
     )
-    ax.plot(test_x, test_y, label="predicted flight path", color="#d62728", zorder=2)
+    ax.plot(
+        test_x, test_y, label="predicted flight path", color="#d62728", zorder=2
+    )
 
     for i in range(len(train_pulse)):
         if train_pulse[i] >= 0.5:

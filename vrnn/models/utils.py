@@ -279,6 +279,7 @@ def roll_out(
         role_long[:, dim * 2 :] = next_acc[:, roleOrder, :]
     if acc >= 0 and acc < 4:
         role_long[:, dim : dim * 2] = next_vel[:, roleOrder, :]
+        role_long[:, 5] = next_pulse_flag[:, roleOrder]
     if acc == 1 or acc == 3 or acc == -1:
         error("not modified yet")  # TBD
         role_long[:, :dim] = next_pos[:, roleOrder, :]
@@ -294,7 +295,7 @@ def roll_out(
             next_point = role_long[idx][:dim]
             prev_point = prev_prev_faeture[idx][:dim]
             # [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state]
-            if prev_f[5] >= 0.5:
+            if role_long[idx, 5] >= 0.5:
                 pulse_flag = True
                 (
                     theta,
@@ -325,9 +326,7 @@ def roll_out(
             elif prev_feature[idx, 7] >= 100 and prev_feature[idx, 7] < 200:
                 pass
             role_long[idx, 8:] = torch.tensor(env_state)
-        role_long[:, 2:4] = next_vel[0]
-        role_long[:, 5] = next_pulse_flag[0]
-        role_long[:, 5:8] = prev_feature[:, 5:8]
+        role_long[:, 6:8] = prev_feature[:, 6:8]
     elif acc == 4:
         role_long[:, dim : dim * 2] = (
             prev_feature[
@@ -349,49 +348,49 @@ def roll_out(
     new_matrix[:, roleOrder, :] = role_long
 
     # fix all teammates vector
-    for teammate in teammateList:
-        player = legacy_next[:, teammate, :]
-        if (
-            teammate in roleOrderList
-        ):  # if the teammate is one of the active players: e.g. eliminate goalkeepers
-            teamRoleInd = roleOrderList.index(teammate)
+    # for teammate in teammateList:
+    #     player = legacy_next[:, teammate, :]
+    #     if (
+    #         teammate in roleOrderList
+    #     ):  # if the teammate is one of the active players: e.g. eliminate goalkeepers
+    #         teamRoleInd = roleOrderList.index(teammate)
 
-            if acc >= 2:  # vel,acc
-                player[:, dim * 2 :] = next_acc[:, teamRoleInd, :]
+    #         if acc >= 2:  # vel,acc
+    #             player[:, dim * 2 :] = next_acc[:, teamRoleInd, :]
 
-            if acc >= 0 and acc < 4:
-                player[:, dim : dim * 2] = next_vel[:, teamRoleInd, :]
-            elif acc == 4:
-                player[:, dim : dim * 2] = (
-                    prev_feature[
-                        :,
-                        teamRoleInd * n_feat
-                        + dim : (teamRoleInd * n_feat + dim * 2),
-                    ]
-                    + prev_feature[
-                        :,
-                        teamRoleInd * n_feat
-                        + dim : 2 : (teamRoleInd * n_feat + dim * 3),
-                    ]
-                    * fs
-                )
+    #         if acc >= 0 and acc < 4:
+    #             player[:, dim : dim * 2] = next_vel[:, teamRoleInd, :]
+    #         elif acc == 4:
+    #             player[:, dim : dim * 2] = (
+    #                 prev_feature[
+    #                     :,
+    #                     teamRoleInd * n_feat
+    #                     + dim : (teamRoleInd * n_feat + dim * 2),
+    #                 ]
+    #                 + prev_feature[
+    #                     :,
+    #                     teamRoleInd * n_feat
+    #                     + dim : 2 : (teamRoleInd * n_feat + dim * 3),
+    #                 ]
+    #                 * fs
+    #             )
 
-            if acc == 1 or acc == 3 or acc == -1:
-                player[:, 0:dim] = next_pos[:, teamRoleInd, :]
-            else:
-                player[:, 0:dim] = (
-                    prev_feature[
-                        :, teamRoleInd * n_feat : (teamRoleInd * n_feat + dim)
-                    ]
-                    + prev_feature[
-                        :,
-                        teamRoleInd * n_feat
-                        + dim : (teamRoleInd * n_feat + dim * 2),
-                    ]
-                    * fs
-                )
+    #         if acc == 1 or acc == 3 or acc == -1:
+    #             player[:, 0:dim] = next_pos[:, teamRoleInd, :]
+    #         else:
+    #             player[:, 0:dim] = (
+    #                 prev_feature[
+    #                     :, teamRoleInd * n_feat : (teamRoleInd * n_feat + dim)
+    #                 ]
+    #                 + prev_feature[
+    #                     :,
+    #                     teamRoleInd * n_feat
+    #                     + dim : (teamRoleInd * n_feat + dim * 2),
+    #                 ]
+    #                 * fs
+    #             )
 
-        new_matrix[:, teammate, :] = player
+    #     new_matrix[:, teammate, :] = player
 
     # output
     new_feature_vector = torch.reshape(

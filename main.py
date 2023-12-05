@@ -36,6 +36,8 @@ import tensorboardX as tbx
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
+torch.cuda.empty_cache()
+
 # customized ftns
 
 # from scipy import signal
@@ -604,7 +606,7 @@ if __name__ == "__main__":
     # train pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/bats/train_kiku.pkl",
+            os.path.dirname(game_files) + "/bats/kiku_train.pkl",
             "rb",
         ) as f:
             X_train_all = np.load(f, allow_pickle=True)
@@ -614,7 +616,7 @@ if __name__ == "__main__":
     # test pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/bats/test_kiku.pkl",
+            os.path.dirname(game_files) + "/bats/kiku_test.pkl",
             "rb",
         ) as f:
             X_test_all = np.load(f, allow_pickle=True)
@@ -855,7 +857,7 @@ if __name__ == "__main__":
     args.n_layers = 2
     args.rnn_micro_dim = args.rnn_dim
     args.rnn_macro_dim = 100
-    args.burn_in = int(totalTimeSteps / 3 * 2)  # 予測に使う長さ
+    args.burn_in = int(totalTimeSteps / 2)  # 予測に使う長さ
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
     if args.data == "soccer":

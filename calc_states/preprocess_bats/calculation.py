@@ -64,7 +64,7 @@ def calc_obs_area(obs_point_dict):
 # 2023の障害物情報
 obs_point_dict = json.load(
     open(
-        "calc_states/preprocess_bats/obstacle_information/2023/Envs.json",
+        "calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
         "r",
     )
 )

@@ -389,12 +389,15 @@ class MACRO_VRNN(nn.Module):
                 for i in range(n_agents)
             ]
         )
-        # self.dec_pulse = nn.ModuleList([nn.Sequential(
-        #     nn.Linear(h_dim, 1),
-        #     nn.Sigmoid()) for i in range(n_agents)])
         self.dec_pulse = nn.ModuleList(
-            [nn.Sequential(nn.Linear(h_dim, 1)) for i in range(n_agents)]
+            [
+                nn.Sequential(nn.Linear(h_dim, 1), nn.Sigmoid())
+                for i in range(n_agents)
+            ]
         )
+        # self.dec_pulse = nn.ModuleList(
+        #     [nn.Sequential(nn.Linear(h_dim, 1)) for i in range(n_agents)]
+        # )
 
         self.gru_micro = nn.ModuleList(
             [
@@ -1058,8 +1061,8 @@ class MACRO_VRNN(nn.Module):
                     )
 
                     # objective function
-                    # pulse_loss = nn.BCELoss()
-                    pulse_loss = nn.MSELoss()
+                    pulse_loss = nn.BCELoss()
+                    # pulse_loss = nn.MSELoss()
                     out["L_kl"] += kld_gauss(
                         enc_mean_t,
                         enc_std_t,
@@ -1935,8 +1938,8 @@ class MACRO_VRNN(nn.Module):
                         ).to(device)
                     dec_pulse_t = self.dec_pulse[i](dec_t)
                     # objective function
-                    # pulse_loss = nn.BCELoss()
-                    pulse_loss = nn.MSELoss()
+                    pulse_loss = nn.BCELoss()
+                    # pulse_loss = nn.MSELoss()
                     # for evaluation only
                     enc_t = self.enc[i](enc_in)
                     if self.batchnorm:
@@ -2100,7 +2103,6 @@ class MACRO_VRNN(nn.Module):
                         )
                     else:
                         out2["L_jrk"][n] += batch_error(a_t1, a_t2, Sum)
-
                     if t >= burn_in or burn_in == len_time:  # and not CF_pred:
                         # prediction
                         prediction_all[:, i, :2] = dec_mean_t[:, : x_dim - 1]
@@ -2226,6 +2228,7 @@ class MACRO_VRNN(nn.Module):
                                 i,
                             )
                             del v_t1, next_pos
+
         if self.macro:
             macro_intents.data[-1] = macro_intents.data[
                 -2

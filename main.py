@@ -90,6 +90,12 @@ parser.add_argument("--pretrain", type=int, default=0)
 parser.add_argument("--pretrain2", type=int, default=0)
 parser.add_argument("--finetune", action="store_true")
 parser.add_argument("--drop_ind", action="store_true")
+parser.add_argument(
+    "--pred_type",
+    type=int,
+    default=0,
+    help="if predict pulse timing or not, 0:predict pulse timing, 1: not predict pulse flag, 2: only predict pulse timig (not predict velocity)",
+)
 args, _ = parser.parse_known_args()
 
 # directories
@@ -498,6 +504,9 @@ if __name__ == "__main__":
     args.in_sma = True  # small multi-agent data
     # normalize = False
     acc = args.acc  # output: 0: vel, 1: pos+vel, 2:vel+acc, 3: pos+vel+acc
+    pred_type = (
+        args.pred_type
+    )  # output: 0: velocity+pulse, 1: velocity, 2: pulse
     args.vel_in = 1 if args.vel_in else 2  # input 1: vel 2: vel+acc
     if acc == -1:
         args.vel_in = -1  # position only
@@ -517,16 +526,12 @@ if __name__ == "__main__":
     ]
     global fs
     fs = 1 / args.fs
-    if args.data == "nba":
-        n_pl = 5
-        subsample_factor = 25 * fs
-    elif args.data == "soccer":
-        n_pl = 11
-        subsample_factor = 10 * fs
-    elif args.data == "bat":
+    if args.data == "bat":
         n_pl = 1
         # note default fs is 60 Hz
         subsample_factor = 50 * fs
+    else:
+        raise NameError("this codes is only for bats' data")
 
     args.subsample_factor = subsample_factor
     event_threshold = args.event_threshold
@@ -538,13 +543,11 @@ if __name__ == "__main__":
     totalTimeSteps = args.totalTimeSteps
 
     # save the processed file to disk to avoid repeated work
-    game_file0 = "./data/all_" + args.data + "_games_" + str(n_GorS) + "_"
+    game_file0 = "./data/all_" + args.data + "_flight_" + str(n_GorS) + "_"
     game_file0 = (
         game_file0 + "unnorm" if not args.normalize else game_file0 + "norm"
     )
 
-    game_file0 = game_file0 + "_filt"
-    game_file0 = game_file0 + "_acc"
     k_nearest = args.k_nearest  # 3
     if k_nearest == 0:
         game_file0 = game_file0 + "_k0"
@@ -556,19 +559,14 @@ if __name__ == "__main__":
     if not os.path.isdir(game_file0):
         os.makedirs(game_file0)
 
-    game_files_pre = game_file0 + "_pre"
-
     game_file0 = game_file0 + "Fs" + str(args.fs)
-    if acc == -1:
-        game_file0 = game_file0 + "_pos"
-    if args.vel_in == 1:
+    if pred_type == 0:
+        game_file0 = game_file0 + "_vel_pulse"
+    elif pred_type == 1:
         game_file0 = game_file0 + "_vel"
-    if args.in_sma:
-        game_file0 = game_file0 + "_inSimple"
-    elif args.in_out:
-        game_file0 = game_file0 + "_inout"
-    # if args.normalize:
-    #    game_file0 = game_file0 + '_norm'
+    elif pred_type == 2:
+        game_file0 = game_file0 + "_pulse"
+
     game_file0 = game_file0 + "_" + str(batchSize) + "_" + str(totalTimeSteps)
     print(game_file0)
     game_files = game_file0
@@ -581,15 +579,20 @@ if __name__ == "__main__":
         [str(n) for n in range(n_roles)]
     )  # need to be reconsidered
 
-    if acc == 0 or acc == -1 or acc == 4:  # vel/pos/acc only
+    if pred_type == 0:
+        # vel+pulse
         if args.in_sma:
             outputlen0 = 3
         else:
             outputlen0 = 4
-    elif acc == 3:  # all
-        outputlen0 = 6
-    else:
-        outputlen0 = 4
+    elif pred_type == 1:
+        # vel
+        if args.in_sma:
+            outputlen0 = 2
+        else:
+            outputlen0 = 3
+    elif pred_type == 2:
+        outputlen0 = 1
 
     # We are only looking at the most recent character each time.
     numOfPrevSteps = 1
@@ -606,7 +609,7 @@ if __name__ == "__main__":
     # train pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/bats/kiku_train.pkl",
+            os.path.dirname(game_files) + "/yubi_train.pkl",
             "rb",
         ) as f:
             X_train_all = np.load(f, allow_pickle=True)
@@ -616,7 +619,7 @@ if __name__ == "__main__":
     # test pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/bats/kiku_test.pkl",
+            os.path.dirname(game_files) + "/yubi_test.pkl",
             "rb",
         ) as f:
             X_test_all = np.load(f, allow_pickle=True)
@@ -629,6 +632,7 @@ if __name__ == "__main__":
 
     len_seqs = len(X_train_all[0])
     X_ind = np.arange(len_seqs)
+    # random_state default 42
     ind_train, ind_val, _, _ = train_test_split(
         X_ind, X_ind, test_size=1 / val_devide, random_state=42
     )
@@ -675,12 +679,6 @@ if __name__ == "__main__":
     batchSize_test = len_seqs_test  # args.batchsize # 32
     len_seqs_test0 = len_seqs_test
     ind_test = np.arange(len_seqs_test)
-
-    # if args.data == 'nba':
-    #     X_ind = np.arange(len_seqs_test)
-    #     _, ind_test, _, _ = train_test_split(
-    #         X_ind, X_ind, test_size=1/3, random_state=42)
-    #     len_seqs_test = len(ind_test)
 
     X_test_test_all = np.zeros(
         [n_roles, len_seqs_test, totalTimeSteps_test + 4, featurelen]
@@ -771,15 +769,12 @@ if __name__ == "__main__":
 
     # parameters for VRNN -----------------------------------
     init_filename0 = path_init + "sub" + str(args.fs) + "_"
-    init_filename0 = init_filename0 + "filt_"
-    if args.vel_in == 1:
-        init_filename0 = init_filename0 + "vel_"
-    if args.meanHMM:
-        init_filename0 = init_filename0 + "meanHMM_"
-    if args.in_sma:
-        init_filename0 = init_filename0 + "inSimple_"
-    elif args.in_out:
-        init_filename0 = init_filename0 + "inout_"
+    if pred_type == 0:
+        game_file0 = game_file0 + "_vel_pulse"
+    elif pred_type == 1:
+        game_file0 = game_file0 + "_vel"
+    elif pred_type == 2:
+        game_file0 = game_file0 + "_pulse"
     init_filename0 = init_filename0 + "acc_" + str(args.acc) + "_"
     init_filename0 = (
         init_filename0 + "norm/"
@@ -817,9 +812,6 @@ if __name__ == "__main__":
     if args.res:
         init_filename0 = init_filename0 + "_res"
 
-    # if args.hard_only and args.attention == 3:
-    #    init_filename0 = init_filename0 + '_hard_only'
-
     if not os.path.isdir(init_filename0):
         os.makedirs(init_filename0)
     init_pthname = "{}_state_dict".format(init_filename0)
@@ -831,9 +823,6 @@ if __name__ == "__main__":
     if not os.path.isdir(init_pthname0):
         os.makedirs(init_pthname0)
 
-    if args.n_GorS == 7500 and args.data == "soccer":
-        batchSize = int(batchSize / 2)
-    # args.hard_only = True
     args.dataset = args.data
     args.n_feat = n_feat
     args.fs = fs
@@ -860,12 +849,10 @@ if __name__ == "__main__":
     args.burn_in = int(totalTimeSteps / 2)  # 予測に使う長さ
     args.horizon = totalTimeSteps
     args.n_agents = len(activeRole)
-    if args.data == "soccer":
-        args.n_all_agents = 22
-    elif args.data == "bat":
+    if args.data == "bat":
         args.n_all_agents = 1
     else:
-        args.n_all_agents = 10
+        raise NameError("this codes is only for bats' data")
     # args.n_all_agents = 22 if args.data == 'soccer' else 10
     if not torch.cuda.is_available():
         args.cuda = False
@@ -926,6 +913,7 @@ if __name__ == "__main__":
         "drop_ind": args.drop_ind,
         "pretrain2": args.pretrain2,
         "init_pthname0": init_pthname0,
+        "pred_type": args.pred_type,
     }
 
     # 'pretrain' : args.pretrain,
@@ -1223,7 +1211,7 @@ if __name__ == "__main__":
                 if (
                     epoch > pretrain_time
                     and (best_val_loss_prev - best_val_loss) / best_val_loss
-                    < 0.0001
+                    < 0.00001
                     and best_val_loss_prev != 0
                 ):
                     print(

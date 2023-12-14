@@ -114,6 +114,10 @@ def horizon_angle(x, y):
 
     vec1 = [x[1] - x[0], y[1] - y[0]]
     vec2 = [x[2] - x[1], y[2] - y[1]]
+    if np.linalg.norm(vec1) == 0 or np.linalg.norm(vec2) == 0:
+        import pdb
+
+        pdb.set_trace()
     absvec1 = np.linalg.norm(vec1)
     absvec2 = np.linalg.norm(vec2)
     inner = np.dot(vec1, vec2)

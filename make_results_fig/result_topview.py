@@ -10,7 +10,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 
 with open(
-    "./weights/sub100_filt_vel_meanHMM_inSimple_acc_0_unnorm/MACRO_VRNN_bat/att_-1_100_796_wo_macro/params.p",
+    "./home/user/Desktop/dev_python/imitation_bat/PO-MC-DHVRNN/teshima/result/without_pulse/yubi/epoch200/att_-1_100_796_wo_macro/params.p",
     "rb",
 ) as f:
     param = np.load(f, allow_pickle=True)
@@ -18,14 +18,14 @@ with open(
     predict_time = param["burn_in"]
 
 with open(
-    "./weights/sub100_filt_vel_meanHMM_inSimple_acc_0_unnorm/MACRO_VRNN_bat/att_-1_100_796_wo_macro/experiments/sample/samples.p",
+    "./home/user/Desktop/dev_python/imitation_bat/PO-MC-DHVRNN/teshima/result/without_pulse/yubi/epoch200/att_-1_100_796_wo_macro/experiments/sample/samples.p",
     "rb",
 ) as f:
     data = np.load(f, allow_pickle=True)
 
 # import pdb; pdb.set_trace()
 os.makedirs("./teshima/result/pulse", exist_ok=True)
-pp = PdfPages("./teshima/result/pulse/topview_vrnn_pulse.pdf")
+pp = PdfPages("./teshima/result/pulse/topview_vrnn_yubi.pdf")
 
 count = 0
 
@@ -135,25 +135,25 @@ for episode in range(len(data[0][0][0][0])):
         test_x, test_y, label="predicted flight path", color="#d62728", zorder=2
     )
 
-    for i in range(len(train_pulse)):
-        if train_pulse[i] >= 0.5:
-            ax.scatter(
-                train_x_pre[i],
-                train_y_pre[i],
-                label="measured pulse timing",
-                color="#1f77b4",
-                s=10,
-                zorder=3,
-            )
-        if test_pulse[i] >= 0.5:
-            ax.scatter(
-                test_x[i],
-                test_y[i],
-                label="predicted pulse timing",
-                color="#d62728",
-                s=10,
-                zorder=3,
-            )
+    # for i in range(len(train_pulse)):
+    #     if train_pulse[i] >= 0.5:
+    #         ax.scatter(
+    #             train_x_pre[i],
+    #             train_y_pre[i],
+    #             label="measured pulse timing",
+    #             color="#1f77b4",
+    #             s=10,
+    #             zorder=3,
+    #         )
+    #     if test_pulse[i] >= 0.5:
+    #         ax.scatter(
+    #             test_x[i],
+    #             test_y[i],
+    #             label="predicted pulse timing",
+    #             color="#d62728",
+    #             s=10,
+    #             zorder=3,
+    #         )
 
     plt.xlabel("X [m]")
     plt.ylabel("Y [m]")

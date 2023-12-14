@@ -216,6 +216,7 @@ def calc_dist_cos_sin(rolePos, refPos, batchSize):
 def roll_out(
     y_t_pre,
     y_t,
+    y_t1i,
     prediction_all,
     acc,
     normalize,
@@ -225,6 +226,7 @@ def roll_out(
     fs,
     batchSize,
     i,
+    pred_type,
 ):  # update feature vector using next_prediction
     """
     input:
@@ -236,25 +238,37 @@ def roll_out(
     """
     prev_prev_faeture = y_t_pre
     prev_feature = y_t
+    next_feature = y_t1i
     dim_x = prediction_all.shape[2]
-    if acc == 0:  # vel
+    dim = dim_x
+    if pred_type == 0:
         next_vel = prediction_all[:, :, :2]
         next_pulse_flag = prediction_all[:, :, 2]
-        dim = dim_x - 1
-    elif acc == 1 or acc == -1 or acc == 3:  # pos,vel,(acc)
-        error("not modified yet. dim should be defined")  # TBD
-        next_pos = prediction_all[:, :, :2]
-        if acc >= 1:
-            next_vel = prediction_all[:, :, 2:4]
-        if acc == 3:
-            next_acc = prediction_all[:, :, 4:]
-    elif acc == 2:  # vel,acc
-        dim = int(dim_x / 2)
-        next_vel = prediction_all[:, :, :dim]
-        next_acc = prediction_all[:, :, dim:]
-    elif acc == 4:  # acc
-        next_acc = prediction_all
-        dim = dim_x
+        dim = dim - 1
+    elif pred_type == 1:
+        next_vel = prediction_all[:, :, :2]
+    elif pred_type == 2:
+        next_pulse_flag = prediction_all[:, :, 0]
+
+    # if acc == 0:  # vel
+    #     next_vel = prediction_all[:, :, :2]
+    #     next_pulse_flag = prediction_all[:, :, 2]
+    #     dim = dim_x - 1
+
+    # elif acc == 1 or acc == -1 or acc == 3:  # pos,vel,(acc)
+    #     error("not modified yet. dim should be defined")  # TBD
+    #     next_pos = prediction_all[:, :, :2]
+    #     if acc >= 1:
+    #         next_vel = prediction_all[:, :, 2:4]
+    #     if acc == 3:
+    #         next_acc = prediction_all[:, :, 4:]
+    # elif acc == 2:  # vel,acc
+    #     dim = int(dim_x / 2)
+    #     next_vel = prediction_all[:, :, :dim]
+    #     next_acc = prediction_all[:, :, dim:]
+    # elif acc == 4:  # acc
+    #     next_acc = prediction_all
+    #     dim = dim_x
 
     roleOrder = i
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -264,26 +278,21 @@ def roll_out(
     n_all_agents = n_roles
     n_feat_player = n_feat * n_all_agents
 
-    next_current = prev_feature[:, 0:n_feat_player]
+    next_current = next_feature[:, 0:n_feat_player]
 
     legacy_next = next_current.reshape(batchSize, n_all_agents, n_feat)
     new_matrix = torch.zeros((batchSize, n_all_agents, n_feat)).to(device)
     teammateList = list(range(n_all_agents))
 
     roleOrderList = [role for role in range(n_roles)]
-    role_long = torch.zeros((batchSize, n_feat)).to(device)
+    # role_long = torch.zeros((batchSize, n_feat)).to(device)
+    role_long = next_current.to(device)
     teammateList.remove(roleOrder)
 
     # fix role vector
-    if acc >= 2:
-        role_long[:, dim * 2 :] = next_acc[:, roleOrder, :]
-    if acc >= 0 and acc < 4:
+    if pred_type == 0:
         role_long[:, dim : dim * 2] = next_vel[:, roleOrder, :]
         role_long[:, 5] = next_pulse_flag[:, roleOrder]
-    if acc == 1 or acc == 3 or acc == -1:
-        error("not modified yet")  # TBD
-        role_long[:, :dim] = next_pos[:, roleOrder, :]
-    elif acc == 0 or acc == 2:
         role_long[:, 0:dim] = (
             prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
             + prev_feature[
@@ -291,59 +300,83 @@ def roll_out(
             ]
             * fs
         )
-        for idx, prev_f in enumerate(prev_feature):
-            next_point = role_long[idx][:dim]
-            prev_point = prev_prev_faeture[idx][:dim]
-            # [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state]
-            if role_long[idx, 5] >= 0.5:
-                pulse_flag = True
-                (
-                    theta,
-                    env_state,
-                ) = preprocess_bat.calc_bat_states(
-                    prev_f,
-                    prev_point,
-                    next_point,
-                    dim,
-                    pulse_flag,
-                )
-            else:
-                pulse_flag = False
-                (
-                    theta,
-                    env_state,
-                ) = preprocess_bat.calc_bat_states(
-                    prev_f,
-                    prev_point,
-                    next_point,
-                    dim,
-                    pulse_flag,
-                )
+    elif pred_type == 1:
+        role_long[:, dim : dim * 2] = next_vel[:, roleOrder, :]
+        role_long[:, 0:dim] = (
+            prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
+            + prev_feature[
+                :, roleOrder * n_feat + dim : (roleOrder * n_feat + dim * 2)
+            ]
+            * fs
+        )
+    elif pred_type == 2:
+        role_long[:, 5] = next_pulse_flag[:, roleOrder]
+
+        # if acc >= 0 and acc < 4:
+        #     role_long[:, dim : dim * 2] = next_vel[:, roleOrder, :]
+        #     role_long[:, 5] = next_pulse_flag[:, roleOrder]
+        # elif acc == 0 or acc == 2:
+        #     role_long[:, 0:dim] = (
+        #         prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
+        #         + prev_feature[
+        #             :, roleOrder * n_feat + dim : (roleOrder * n_feat + dim * 2)
+        #         ]
+        #         * fs
+        #     )
+    for idx, prev_f in enumerate(prev_feature):
+        next_point = role_long[idx][:dim]
+        prev_point = prev_prev_faeture[idx][:dim]
+        # [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state]
+        if role_long[idx, 5] >= 0.5:
+            pulse_flag = True
+            (
+                theta,
+                env_state,
+            ) = preprocess_bat.calc_bat_states(
+                prev_f,
+                prev_point,
+                next_point,
+                dim,
+                pulse_flag,
+            )
+        else:
+            pulse_flag = False
+            (
+                theta,
+                env_state,
+            ) = preprocess_bat.calc_bat_states(
+                prev_f,
+                prev_point,
+                next_point,
+                dim,
+                pulse_flag,
+            )
+        if pred_type != 2:
             role_long[idx, 4] = theta
-            if prev_feature[idx, 7] >= 200:
-                env_state[:62] = 2.0
-                env_state[188:] = 2.0
-            elif prev_feature[idx, 7] >= 100 and prev_feature[idx, 7] < 200:
-                pass
-            role_long[idx, 8:] = torch.tensor(env_state)
-        role_long[:, 6:8] = prev_feature[:, 6:8]
-    elif acc == 4:
-        role_long[:, dim : dim * 2] = (
-            prev_feature[
-                :, roleOrder * n_feat + 2 : (roleOrder * n_feat + dim * 2)
-            ]
-            + prev_feature[
-                :, roleOrder * n_feat + dim * 2 : (roleOrder * n_feat + dim * 3)
-            ]
-            * fs
-        )
-        role_long[:, 0:dim] = (
-            prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
-            + prev_feature[
-                :, roleOrder * n_feat + dim : (roleOrder * n_feat + dim * 2)
-            ]
-            * fs
-        )
+        if prev_feature[idx, 7] >= 200:
+            env_state[:62] = 2.0
+            env_state[188:] = 2.0
+        elif prev_feature[idx, 7] >= 100 and prev_feature[idx, 7] < 200:
+            pass
+        role_long[idx, 8:] = torch.tensor(env_state)
+    role_long[:, 6:8] = prev_feature[:, 6:8]
+    # elif acc == 4:
+    #     role_long[:, dim : dim * 2] = (
+    #         prev_feature[
+    #             :, roleOrder * n_feat + 2 : (roleOrder * n_feat + dim * 2)
+    #         ]
+    #         + prev_feature[
+    #             :, roleOrder * n_feat + dim * 2 : (roleOrder * n_feat + dim * 3)
+    #         ]
+    #         * fs
+    #     )
+    #     role_long[:, 0:dim] = (
+    #         prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
+    #         + prev_feature[
+    #             :, roleOrder * n_feat + dim : (roleOrder * n_feat + dim * 2)
+    #         ]
+    #         * fs
+    #     )
 
     new_matrix[:, roleOrder, :] = role_long
 

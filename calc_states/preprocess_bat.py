@@ -20,11 +20,11 @@ from calc_states.preprocess_bats.calculation import (
 )
 
 
-def calc_cross_points(prev_f, pos_x, pos_z, env_name):
+def calc_cross_points(prev_f, pos_x, pos_z, env_name, bat_species):
     X = [prev_f[0]]
     Y = [prev_f[1]]
 
-    cross_list = cross_point(X, Y, pos_x, pos_z, env_name)
+    cross_list = cross_point(X, Y, pos_x, pos_z, env_name, bat_species)
 
     return cross_list
 
@@ -122,6 +122,7 @@ def calc_states(
     pulse_flag,
 ):
     env_name = int(prev_f[6])
+    bat_species = int(prev_f[7])
     if dim == 3:
         print("not concider in 3-dim yet")
         exit()
@@ -130,7 +131,9 @@ def calc_states(
     pos_x, pos_z = calc_rotation_point(prev_f, next_point, dim)
     if pulse_flag:
         # calc cross point
-        cross_distance = calc_cross_points(prev_f, pos_x, pos_z, env_name)[0]
+        cross_distance = calc_cross_points(
+            prev_f, pos_x, pos_z, env_name, bat_species
+        )[0]
     else:
         cross_distance = [2.0 for i in range(len(pos_x[0]))]
 

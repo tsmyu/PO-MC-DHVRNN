@@ -844,11 +844,13 @@ class MACRO_VRNN(nn.Module):
                                 :,
                                 n_feat * i + 2 : n_feat * i + 4,
                             ]
-                            flag_pulse = y_t[:, n_feat * i + 5].clone()
+                            flag_pulse = (
+                                y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                            )
                             current_vel_with_pulse = torch.cat(
                                 (
                                     current_vel,
-                                    flag_pulse.reshape(-1, 1),
+                                    flag_pulse,
                                 ),
                                 dim=1,
                             )
@@ -1082,6 +1084,8 @@ class MACRO_VRNN(nn.Module):
                             ).to(device)
 
                     elif self.pred_type == 2:
+                        # here under concidaration
+                        # dec_mean_t = states
                         dec_pulse_t = self.dec_pulse[i](dec_t)
 
                     (

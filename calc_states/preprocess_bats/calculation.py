@@ -64,7 +64,7 @@ def calc_obs_area(obs_point_dict):
 # 2023の障害物情報
 obs_point_dict = json.load(
     open(
-        "calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
+        "calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
         "r",
     )
 )
@@ -203,12 +203,27 @@ def cross_point(
     y: list,
     rot_x: list,
     rot_y: list,
-    env_num: str,
+    env_num: int,
+    bat_species: int,
 ):
     """
     交点までの距離を算出
     """
     env_name = get_env_name(env_num)
+    if bat_species >= 200:
+        obs_area_dict = json.load(
+            open(
+                "./calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
+                "r",
+            )
+        )
+    elif bat_species >= 100 and bat_species < 200:
+        obs_area_dict = json.load(
+            open(
+                "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
+                "r",
+            )
+        )
     obs_x_list = obs_area_dict["wall"]["x"] + obs_area_dict[env_name]["x"]
     obs_y_list = obs_area_dict["wall"]["y"] + obs_area_dict[env_name]["y"]
 

@@ -97,6 +97,8 @@ parser.add_argument(
     help="if predict pulse timing or not, 0:predict pulse timing, 1: not predict pulse flag, 2: only predict pulse timig (not predict velocity)",
 )
 args, _ = parser.parse_known_args()
+if args.pred_type == 2:
+    raise ValueError("pulse only prediction is still under concidaration.")
 
 # directories
 main_dir = "../"  # './'

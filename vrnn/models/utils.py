@@ -227,6 +227,7 @@ def roll_out(
     batchSize,
     i,
     pred_type,
+    obs_point_dict,
 ):  # update feature vector using next_prediction
     """
     input:
@@ -338,6 +339,7 @@ def roll_out(
                 next_point,
                 dim,
                 pulse_flag,
+                obs_point_dict,
             )
         else:
             pulse_flag = False
@@ -350,6 +352,7 @@ def roll_out(
                 next_point,
                 dim,
                 pulse_flag,
+                obs_point_dict,
             )
         if pred_type != 2:
             role_long[idx, 4] = theta

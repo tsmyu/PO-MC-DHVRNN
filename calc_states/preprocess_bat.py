@@ -20,11 +20,24 @@ from calc_states.preprocess_bats.calculation import (
 )
 
 
-def calc_cross_points(prev_f, pos_x, pos_z, env_name, bat_species):
+def calc_cross_points(
+    prev_f,
+    pos_x,
+    pos_z,
+    env_name,
+    obs_point_dict,
+):
     X = [prev_f[0]]
     Y = [prev_f[1]]
 
-    cross_list = cross_point(X, Y, pos_x, pos_z, env_name, bat_species)
+    cross_list = cross_point(
+        X,
+        Y,
+        pos_x,
+        pos_z,
+        env_name,
+        obs_point_dict,
+    )
 
     return cross_list
 
@@ -120,9 +133,9 @@ def calc_states(
     next_point,
     dim,
     pulse_flag,
+    obs_point_dict,
 ):
     env_name = int(prev_f[6])
-    bat_species = int(prev_f[7])
     if dim == 3:
         print("not concider in 3-dim yet")
         exit()
@@ -132,7 +145,11 @@ def calc_states(
     if pulse_flag:
         # calc cross point
         cross_distance = calc_cross_points(
-            prev_f, pos_x, pos_z, env_name, bat_species
+            prev_f,
+            pos_x,
+            pos_z,
+            env_name,
+            obs_point_dict,
         )[0]
     else:
         cross_distance = [2.0 for i in range(len(pos_x[0]))]
@@ -167,6 +184,7 @@ def calc_bat_states(
     next_point,
     dim,
     pulse_flag,
+    obs_point_dict,
 ):
     """
     prev_f = [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state(251dim)]
@@ -181,6 +199,7 @@ def calc_bat_states(
         next_point,
         dim,
         pulse_flag,
+        obs_point_dict,
     )
 
     return theta, cross_distance

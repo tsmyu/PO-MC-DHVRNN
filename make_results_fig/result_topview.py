@@ -10,7 +10,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 
 with open(
-    "./weights/sigmoid_BCE/epoch100_yubi/params.p",
+    "./weights/sigmoid_BCE/epoch200_aoki/params.p",
     "rb",
 ) as f:
     param = np.load(f, allow_pickle=True)
@@ -18,14 +18,14 @@ with open(
     predict_time = param["burn_in"]
 
 with open(
-    "./weights/sigmoid_BCE/epoch100_yubi/experiments/sample/samples.p",
+    "./weights/sigmoid_BCE/epoch200_aoki/experiments/sample/samples.p",
     "rb",
 ) as f:
     data = np.load(f, allow_pickle=True)
 
 # import pdb; pdb.set_trace()
 os.makedirs("./teshima/result/pulse", exist_ok=True)
-pp = PdfPages("./teshima/result/pulse/topview_vrnn_yubi.pdf")
+pp = PdfPages("./teshima/result/pulse/topview_vrnn_kiku.pdf")
 
 count = 0
 

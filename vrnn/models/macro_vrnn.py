@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import json
 
 from vrnn.models.utils import (
     parse_model_params,
@@ -717,6 +718,22 @@ class MACRO_VRNN(nn.Module):
                 h_macro = cudafy_list(h_macro)
             h_micro = cudafy_list(h_micro)
 
+        bat_species = int(states[0][0][7])
+        if bat_species >= 200:
+            obs_point_dict = json.load(
+                open(
+                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
+                    "r",
+                )
+            )
+        elif bat_species >= 100 and bat_species < 200:
+            obs_point_dict = json.load(
+                open(
+                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
+                    "r",
+                )
+            )
+
         for t in range(len_time):
             if self.macro:
                 m_t = macro_single[t].clone()  # (agents,batch,one-hot)
@@ -1352,6 +1369,7 @@ class MACRO_VRNN(nn.Module):
                                 batchSize,
                                 i,
                                 self.pred_type,
+                                obs_point_dict,
                             )
 
         if hp["pretrain"]:
@@ -1608,6 +1626,23 @@ class MACRO_VRNN(nn.Module):
                     self.bn_dec[i] = self.bn_dec[i].to(device)
 
         states_n = [states.clone() for _ in range(n_sample)]
+        bat_species = int(states[0][0][7])
+        if bat_species >= 200:
+            obs_point_dict = json.load(
+                open(
+                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
+                    "r",
+                )
+            )
+        elif bat_species >= 100 and bat_species < 200:
+            obs_point_dict = json.load(
+                open(
+                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
+                    "r",
+                )
+            )
+        else:
+            raise ValueError("bat number must be 100 - 299")
 
         for t in range(len_time):
             for n in range(n_sample):
@@ -2350,6 +2385,7 @@ class MACRO_VRNN(nn.Module):
                                 batchSize,
                                 i,
                                 self.pred_type,
+                                obs_point_dict,
                             )
                             del v_t1, next_pos
 

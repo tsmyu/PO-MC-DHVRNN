@@ -717,8 +717,7 @@ class MACRO_VRNN(nn.Module):
             if self.macro:
                 h_macro = cudafy_list(h_macro)
             h_micro = cudafy_list(h_micro)
-
-        bat_species = int(states[0][0][7])
+        bat_species = int(states[0][0][0][7])
         if bat_species >= 200:
             obs_point_dict = json.load(
                 open(
@@ -1626,7 +1625,7 @@ class MACRO_VRNN(nn.Module):
                     self.bn_dec[i] = self.bn_dec[i].to(device)
 
         states_n = [states.clone() for _ in range(n_sample)]
-        bat_species = int(states[0][0][7])
+        bat_species = int(states[0][0][0][7])
         if bat_species >= 200:
             obs_point_dict = json.load(
                 open(

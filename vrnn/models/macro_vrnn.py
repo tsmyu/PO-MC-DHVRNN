@@ -2457,7 +2457,7 @@ class MACRO_VRNN(nn.Module):
             states = states_n
 
         return (
-            states,
+            states_n,
             macro_intents,
             hard_att,
             out,

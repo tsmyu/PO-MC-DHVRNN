@@ -107,7 +107,55 @@ Data = LoadData(main_dir, game_dir, args.data)
 path_init = "./weights/"  # './weights_vrnn/init/'
 
 
-def run_epoch(train, rollout, hp):
+def add_sample(
+    sample,
+    data,
+    samples,
+    samples_true,
+    batchSize,
+    batch_idx,
+    r=0,
+    n_smp_b=1,
+):
+    for i in range(n_smp_b):
+        sample0 = (
+            sample[0].detach().cpu().numpy()
+            if n_smp_b == 1
+            else sample[i].detach().cpu().numpy()
+        )
+        data0 = (
+            data.detach().cpu().numpy()
+            if n_smp_b == 1
+            else data.detach().cpu().numpy()
+        )
+        samples[r * n_smp_b + i][
+            :,
+            :,
+            batch_idx * batchSize : (batch_idx + 1) * batchSize,
+        ] = sample0[:-3]
+        samples_true[r * n_smp_b + i][
+            :,
+            :,
+            batch_idx * batchSize : (batch_idx + 1) * batchSize,
+        ] = data0[:-3]
+
+    return samples, samples_true
+
+
+def save_sample(
+    samples,
+    samples_true,
+    type_vt,
+):
+    # Save samples
+    pickle.dump(
+        [samples, samples_true],
+        open(f"{experiment_path}/samples_{type_vt}.p", "wb"),
+        protocol=4,
+    )
+
+
+def run_epoch(train, rollout, hp, samples, samples_true):
     loader = (
         train_loader
         if train == 1
@@ -118,6 +166,7 @@ def run_epoch(train, rollout, hp):
 
     losses = {}
     losses2 = {}
+    batchSize = loader.batch_size
     for batch_idx, (data, macro_intents) in enumerate(loader):
         # print(str(batch_idx))
         d1 = {"batch_idx": batch_idx}
@@ -153,7 +202,7 @@ def run_epoch(train, rollout, hp):
                     )
                 else:
                     (
-                        _,
+                        sample,
                         _,
                         _,
                         batch_losses,
@@ -172,7 +221,14 @@ def run_epoch(train, rollout, hp):
                     # print(prediction_list)
                     # writer.add_scalar('test/prediction', x_pre, y_pre)
             else:
-                _, _, _, batch_losses, batch_losses2, prediction = model.sample(
+                (
+                    sample,
+                    _,
+                    _,
+                    batch_losses,
+                    batch_losses2,
+                    prediction,
+                ) = model.sample(
                     data, rollout=True, burn_in=hp["burn_in"], L_att=hp["L_att"]
                 )
                 # x_pre = float(prediction[1][4].item())
@@ -180,6 +236,9 @@ def run_epoch(train, rollout, hp):
                 # prediction_list.append([x_pre, y_pre])
                 # print(prediction_list)
                 # writer.add_scalar('test/prediction', x_pre, y_pre)
+            samples, samples_true = add_sample(
+                sample, data, samples, samples_true, batchSize, batch_idx
+            )
 
         for key in batch_losses:
             if batch_idx == 0:
@@ -192,12 +251,11 @@ def run_epoch(train, rollout, hp):
                 losses2[key] = batch_losses2[key].item()
             else:
                 losses2[key] += batch_losses2[key].item()
-
     for key in losses:
         losses[key] /= len(loader.dataset)
     for key in losses2:
         losses2[key] /= len(loader.dataset)
-    return losses, losses2
+    return losses, losses2, samples, samples_true
 
 
 def loss_str(losses):
@@ -1054,7 +1112,7 @@ if __name__ == "__main__":
             ),
             batch_size=batchSize,
             shuffle=False,
-            **kwargs
+            **kwargs,
         )
         val_loader = DataLoader(
             GeneralDataset(
@@ -1062,7 +1120,7 @@ if __name__ == "__main__":
             ),
             batch_size=batchSize_val,
             shuffle=False,
-            **kwargs2
+            **kwargs2,
         )
     test_loader = DataLoader(
         GeneralDataset(
@@ -1070,7 +1128,7 @@ if __name__ == "__main__":
         ),
         batch_size=batchSize_test,
         shuffle=False,
-        **kwargs2
+        **kwargs2,
     )
     print(
         "batch train: "
@@ -1156,8 +1214,30 @@ if __name__ == "__main__":
             hyperparams["burn_in"] = args.horizon
             hyperparams["L_att"] = L_att
             # hyperparams = {'model': args.model,'acc': acc,'burn_in': args.horizon,'L_att':L_att}
-            train_loss, train_loss2 = run_epoch(
-                train=1, rollout=False, hp=hyperparams
+            experiment_path = "{}/experiments/sample".format(init_filename0)
+            if not os.path.exists(experiment_path):
+                os.makedirs(experiment_path)
+            # Sample trajectory
+            n_sample = 1
+            samples_val = [
+                np.zeros(
+                    (args.horizon + 1, args.n_agents, len_seqs_val, featurelen)
+                )
+                for t in range(n_sample)
+            ]
+            samples_true_val = [
+                np.zeros(
+                    (args.horizon + 1, args.n_agents, len_seqs_val, featurelen)
+                )
+                for t in range(n_sample)
+            ]
+            # TRAIN
+            train_loss, train_loss2, _, _ = run_epoch(
+                train=1,
+                rollout=False,
+                hp=hyperparams,
+                samples=samples_val,
+                samples_true=samples_true_val,
             )
             print(
                 "Train:\t" + loss_str(train_loss) + "|" + loss_str(train_loss2)
@@ -1166,8 +1246,12 @@ if __name__ == "__main__":
             if not hyperparams["pretrain"]:  # epoch % 5 == 3:
                 hyperparams["burn_in"] = args.burn_in
                 # hyperparams = {'model': args.model,'acc': acc,'burn_in': args.burn_in,'L_att':L_att}
-                val_loss, val_loss2 = run_epoch(
-                    train=0, rollout=False, hp=hyperparams
+                val_loss, val_loss2, samples, samples_true = run_epoch(
+                    train=0,
+                    rollout=False,
+                    hp=hyperparams,
+                    samples=samples_val,
+                    samples_true=samples_true_val,
                 )
                 print(
                     "RO Val:\t" + loss_str(val_loss) + "|" + loss_str(val_loss2)
@@ -1175,8 +1259,12 @@ if __name__ == "__main__":
 
             else:
                 hyperparams["burn_in"] = args.horizon
-                val_loss, val_loss2 = run_epoch(
-                    train=0, rollout=False, hp=hyperparams
+                val_loss, val_loss2, samples, samples_true = run_epoch(
+                    train=0,
+                    rollout=False,
+                    hp=hyperparams,
+                    samples=samples_val,
+                    samples_true=samples_true_val,
                 )
                 print("Val:\t" + loss_str(val_loss) + "|" + loss_str(val_loss2))
 
@@ -1209,11 +1297,12 @@ if __name__ == "__main__":
                     filename = "{}_best_pretrain2.pth".format(init_pthname)
 
                 torch.save(model.state_dict(), filename)
+                save_sample(samples, samples_true, "val")
                 print("##### Best model #####")
                 if (
                     epoch > pretrain_time
                     and (best_val_loss_prev - best_val_loss) / best_val_loss
-                    < 0.00001
+                    < 0.0001
                     and best_val_loss_prev != 0
                 ):
                     print(
@@ -1289,8 +1378,8 @@ if __name__ == "__main__":
 
     # Load ground-truth states from test set
     loader = test_loader
-    n_sample = 10  # 10
-    n_smp_b = 10 if args.dataset == "nba" or args.dataset == "bat" else 1  # 10
+    n_sample = 1  # 10
+    n_smp_b = 10 if args.dataset == "nba" else 1  # 10
     if args.n_GorS >= 50 and args.dataset == "nba" and args.attention == 3:
         n_smp_b = 5
     rep_smp = int(n_sample / n_smp_b)
@@ -1391,7 +1480,7 @@ if __name__ == "__main__":
 
                 for i in range(n_smp_b):
                     sample0 = (
-                        sample.detach().cpu().numpy()
+                        sample[0].detach().cpu().numpy()
                         if n_smp_b == 1
                         else sample[i].detach().cpu().numpy()
                     )

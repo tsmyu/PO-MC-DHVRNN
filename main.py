@@ -669,7 +669,7 @@ if __name__ == "__main__":
     # train pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/yubi_train.pkl",
+            os.path.dirname(game_files) + "/kiku_train.pkl",
             "rb",
         ) as f:
             X_train_all = np.load(f, allow_pickle=True)
@@ -679,7 +679,7 @@ if __name__ == "__main__":
     # test pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/yubi_test.pkl",
+            os.path.dirname(game_files) + "/kiku_test.pkl",
             "rb",
         ) as f:
             X_test_all = np.load(f, allow_pickle=True)
@@ -692,9 +692,9 @@ if __name__ == "__main__":
 
     len_seqs = len(X_train_all[0])
     X_ind = np.arange(len_seqs)
-    # random_state default 42
+    # random_state default for yubi is 41, for kiku is 46
     ind_train, ind_val, _, _ = train_test_split(
-        X_ind, X_ind, test_size=1 / val_devide, random_state=42
+        X_ind, X_ind, test_size=1 / val_devide, random_state=46
     )
 
     featurelen = X_train_all[0][0].shape[1]

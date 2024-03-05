@@ -144,23 +144,30 @@ def calc_data(
 def calc_obs(data, episode):
     Env_name = get_env_name(data[0][0][0][0][episode][6])
 
-    if data[0][0][0][0][episode][7] >= 200:
-        obs_point_dict = json.load(
-            open(
-                "./calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
-                "r",
-            )
+    obs_point_dict = json.load(
+        open(
+            "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
+            "r",
         )
-    elif (
-        data[0][0][0][0][episode][7] >= 100
-        and data[0][0][0][0][episode][7] < 200
-    ):
-        obs_point_dict = json.load(
-            open(
-                "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
-                "r",
-            )
-        )
+    )
+
+    # if data[0][0][0][0][episode][7] >= 200:
+    #     obs_point_dict = json.load(
+    #         open(
+    #             "./calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
+    #             "r",
+    #         )
+    #     )
+    # elif (
+    #     data[0][0][0][0][episode][7] >= 100
+    #     and data[0][0][0][0][episode][7] < 200
+    # ):
+    #     obs_point_dict = json.load(
+    #         open(
+    #             "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
+    #             "r",
+    #         )
+    #     )
 
     obs_x = obs_point_dict[Env_name]["x"]
     obs_y = obs_point_dict[Env_name]["y"]

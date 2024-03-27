@@ -20,25 +20,27 @@ sns.set(
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--bat_type", type=str, required=True)
+parser.add_argument("--model_type", type=str, default="VRNN")
 args, _ = parser.parse_known_args()
 bat_type = args.bat_type
+model_type = args.model_type
 
 
 with open(
-    f"./weights/for_paper/{bat_type}/aoki/params.p",
+    f"./weights/for_paper/{bat_type}/{model_type}/params.p",
     "rb",
 ) as f:
     param = np.load(f, allow_pickle=True)
     # print(param)
     predict_time = param["burn_in"]
 with open(
-    f"./weights/for_paper/{bat_type}/aoki/samples.p",
+    f"./weights/for_paper/{bat_type}/{model_type}/samples.p",
     "rb",
 ) as f:
     data_test = np.load(f, allow_pickle=True)
 
 with open(
-    f"./weights/for_paper/{bat_type}/aoki/samples_val.p",
+    f"./weights/for_paper/{bat_type}/{model_type}/samples_val.p",
     "rb",
 ) as f:
     data_val = np.load(f, allow_pickle=True)
@@ -204,13 +206,13 @@ def write_csv(
     df_vel = pd.DataFrame(vel_dataset_for_pd)
 
     df_loss.to_csv(
-        f"./weights/for_paper/{bat_type}/results/loss.csv",
+        f"./weights/for_paper/{bat_type}/{model_type}/results/loss.csv",
         mode="a",
         index=False,
         header=False,
     )
     df_vel.to_csv(
-        f"./weights/for_paper/{bat_type}/results/velocity.csv",
+        f"./weights/for_paper/{bat_type}/{model_type}/results/velocity.csv",
         mode="a",
         index=False,
         header=False,
@@ -336,17 +338,21 @@ def calc(target_data, pp):
 def main():
     # val data resutls
     print("calc validation data")
-    os.makedirs(f"./weights/for_paper/{bat_type}/results", exist_ok=True)
+    os.makedirs(
+        f"./weights/for_paper/{bat_type}/{model_type}/results", exist_ok=True
+    )
     pp = PdfPages(
-        f"./weights/for_paper/{bat_type}/results/topview_vrnn_{bat_type}_val_with_legend.pdf"
+        f"./weights/for_paper/{bat_type}/{model_type}/results/topview_vrnn_{bat_type}_val_with_legend.pdf"
     )
     calc(data_val, pp)
 
     # test data resutls
     print("calc test data")
-    os.makedirs(f"./weights/for_paper/{bat_type}/results", exist_ok=True)
+    os.makedirs(
+        f"./weights/for_paper/{bat_type}/{model_type}/results", exist_ok=True
+    )
     pp = PdfPages(
-        f"./weights/for_paper/{bat_type}/results/topview_vrnn_{bat_type}_with_legend.pdf"
+        f"./weights/for_paper/{bat_type}/{model_type}/results/topview_vrnn_{bat_type}_with_legend.pdf"
     )
     calc(data_test, pp)
 

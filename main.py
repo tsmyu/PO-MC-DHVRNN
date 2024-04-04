@@ -188,6 +188,7 @@ def run_epoch(train, rollout, hp, samples, samples_true):
                 batch_losses, batch_losses2 = model(data, rollout, train, hp=hp)
             optimizer.zero_grad()
             total_loss = sum(batch_losses.values())
+
             total_loss.backward()
             if hp["model"] != "RNN_ATTENTION":
                 nn.utils.clip_grad_norm_(model.parameters(), clip)
@@ -667,7 +668,7 @@ if __name__ == "__main__":
     # train pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/yubi_train.pkl",
+            os.path.dirname(game_files) + "/kiku_train.pkl",
             "rb",
         ) as f:
             X_train_all = np.load(f, allow_pickle=True)
@@ -677,7 +678,7 @@ if __name__ == "__main__":
     # test pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/yubi_test.pkl",
+            os.path.dirname(game_files) + "/kiku_test.pkl",
             "rb",
         ) as f:
             X_test_all = np.load(f, allow_pickle=True)

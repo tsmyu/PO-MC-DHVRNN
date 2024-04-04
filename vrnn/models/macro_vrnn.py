@@ -647,11 +647,13 @@ class MACRO_VRNN(nn.Module):
             out["L_kl"] = torch.zeros(1).to(device)
             if self.pred_type == 0:
                 out["L_rec"] = torch.zeros(1).to(device)
-                out["L_pulse_flag"] = torch.zeros(1).to(device)
+                out2["L_pulse_flag"] = torch.zeros(1).to(device)
+                out["L_pulse_freq"] = torch.zeros(1).to(device)
             elif self.pred_type == 1:
                 out["L_rec"] = torch.zeros(1).to(device)
             elif self.pred_type == 2:
-                out["L_pulse_flag"] = torch.zeros(1).to(device)
+                out2["L_pulse_flag"] = torch.zeros(1).to(device)
+                out["L_pulse_freq"] = torch.zeros(1).to(device)
             out2["e_pos"] = torch.zeros(1).to(device)
             out2["e_vel"] = torch.zeros(1).to(device)
             out2["e_acc"] = torch.zeros(1).to(device)
@@ -732,7 +734,8 @@ class MACRO_VRNN(nn.Module):
                     "r",
                 )
             )
-
+        pulse_freq_m_arr = torch.zeros(batchSize).to(device)
+        pulse_freq_p_arr = torch.zeros(batchSize).to(device)
         for t in range(len_time):
             if self.macro:
                 m_t = macro_single[t].clone()  # (agents,batch,one-hot)
@@ -780,6 +783,7 @@ class MACRO_VRNN(nn.Module):
                 prediction_all = torch.zeros(batchSize, n_agents, x_dim)
                 for i in range(n_agents):
                     y_t = states[t][i].clone()
+                    pulse_freq_m_arr += y_t[:, 5]
 
                     if self.in_out:
                         x_t0 = states[t + 1][i].clone()  # pos, vel, acc
@@ -1083,6 +1087,9 @@ class MACRO_VRNN(nn.Module):
                             ).to(device)
 
                         dec_pulse_t = self.dec_pulse[i](dec_t)
+                        pulse_freq_p_arr += torch.t(
+                            torch.where(dec_pulse_t >= 0.5, 1, 0)
+                        )[0]
 
                     elif self.pred_type == 1:
                         dec_mean_t = self.dec_mean[i](dec_t)
@@ -1103,6 +1110,9 @@ class MACRO_VRNN(nn.Module):
                         # here under concidaration
                         # dec_mean_t = states
                         dec_pulse_t = self.dec_pulse[i](dec_t)
+                        pulse_freq_p_arr += torch.t(
+                            torch.where(dec_pulse_t >= 0.5, 1, 0)
+                        )[0]
 
                     (
                         _,
@@ -1141,7 +1151,7 @@ class MACRO_VRNN(nn.Module):
                                 dec_std_t[:, :2],
                                 torch.cat([x_t], 1),
                             )
-                            out["L_pulse_flag"] += pulse_loss(
+                            out2["L_pulse_flag"] += pulse_loss(
                                 dec_pulse_t,
                                 next_pulse,
                             )
@@ -1152,7 +1162,7 @@ class MACRO_VRNN(nn.Module):
                                 torch.cat([x_t], 1),
                             )
                         elif self.pred_type == 2:
-                            out["L_pulse_flag"] += pulse_loss(
+                            out2["L_pulse_flag"] += pulse_loss(
                                 dec_pulse_t,
                                 next_pulse,
                             )
@@ -1391,12 +1401,18 @@ class MACRO_VRNN(nn.Module):
             if self.pred_type == 0:
                 out["L_kl"] /= (len_time) * n_agents
                 out["L_rec"] /= (len_time) * n_agents
-                out["L_pulse_flag"] /= (len_time) * n_agents
+                out2["L_pulse_flag"] /= (len_time) * n_agents
+                out["L_pulse_freq"] = torch.sum(
+                    torch.sqrt((pulse_freq_m_arr - pulse_freq_p_arr).pow(2))
+                )
             elif self.pred_type == 1:
                 out["L_kl"] /= (len_time) * n_agents
                 out["L_rec"] /= (len_time) * n_agents
             elif self.pred_type == 2:
-                out["L_pulse_flag"] /= (len_time) * n_agents
+                out2["L_pulse_flag"] /= (len_time) * n_agents
+                out["L_pulse_freq"] = torch.sum(
+                    torch.sqrt((pulse_freq_m_arr - pulse_freq_p_arr).pow(2))
+                )
             if body:
                 out["L_jrk"] /= (len_time) * n_agents
             if self.L_acc:
@@ -1439,7 +1455,12 @@ class MACRO_VRNN(nn.Module):
             if not TEST
             else torch.zeros(n_sample, batchSize).to(device)
         )
-        out["L_pulse_flag"] = (
+        out2["L_pulse_flag"] = (
+            torch.zeros(n_sample).to(device)
+            if not TEST
+            else torch.zeros(n_sample, batchSize).to(device)
+        )
+        out["L_pulse_freq"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
             else torch.zeros(n_sample, batchSize).to(device)
@@ -1643,6 +1664,8 @@ class MACRO_VRNN(nn.Module):
         else:
             raise ValueError("bat number must be 100 - 299")
 
+        pulse_freq_m_arr = torch.zeros(batchSize).to(device)
+        pulse_freq_p_arr = torch.zeros(batchSize).to(device)
         for t in range(len_time):
             for n in range(n_sample):
                 if self.macro:
@@ -1653,6 +1676,7 @@ class MACRO_VRNN(nn.Module):
                         for i in range(n_agents):
                             if t >= burn_in:
                                 y_t = states_n[n][t][i].clone()
+                                pulse_freq_m_arr += y_t[:, 5]
                                 pos_t = self.state2pva(y_t, 1)
 
                                 dec_macro_t = self.dec_macro[i](
@@ -2063,6 +2087,9 @@ class MACRO_VRNN(nn.Module):
                             ).to(device)
 
                         dec_pulse_t = self.dec_pulse[i](dec_t)
+                        pulse_freq_p_arr += torch.t(
+                            torch.where(dec_pulse_t >= 0.5, 1, 0)
+                        )[0]
 
                     elif self.pred_type == 1:
                         dec_mean_t = self.dec_mean[i](dec_t)
@@ -2081,6 +2108,9 @@ class MACRO_VRNN(nn.Module):
 
                     elif self.pred_type == 2:
                         dec_pulse_t = self.dec_pulse[i](dec_t)
+                        pulse_freq_p_arr += torch.t(
+                            torch.where(dec_pulse_t >= 0.5, 1, 0)
+                        )[0]
                     # objective function
                     pulse_loss = nn.BCELoss()
                     # pulse_loss = nn.MSELoss()
@@ -2103,7 +2133,7 @@ class MACRO_VRNN(nn.Module):
                             dec_std_t[:, :2],
                             torch.cat([x_t], 1),
                         )
-                        out["L_pulse_flag"] += pulse_loss(
+                        out2["L_pulse_flag"] += pulse_loss(
                             dec_pulse_t,
                             next_pulse,
                         )
@@ -2114,7 +2144,7 @@ class MACRO_VRNN(nn.Module):
                             torch.cat([x_t], 1),
                         )
                     elif self.pred_type == 2:
-                        out["L_pulse_flag"] += pulse_loss(
+                        out2["L_pulse_flag"] += pulse_loss(
                             dec_pulse_t,
                             next_pulse,
                         )
@@ -2394,7 +2424,7 @@ class MACRO_VRNN(nn.Module):
             ]  # the last time step
         if burn_in == len_time:
             out["e_pos"] /= (len_time) * n_agents
-            out["L_pulse_flag"][n] /= (len_time) * n_agents
+            out2["L_pulse_flag"] /= (len_time) * n_agents
             out2["e_vel"] /= (len_time) * n_agents
             out2["e_acc"] /= (len_time) * n_agents
             out2["e_jrk"] /= (len_time) * n_agents
@@ -2452,6 +2482,10 @@ class MACRO_VRNN(nn.Module):
         if self.attention == 3:
             for n in range(n_sample):
                 out2["att"][n] /= (len_time) * n_agents
+
+        out["L_pulse_freq"] = torch.sum(
+            torch.sqrt((pulse_freq_m_arr - pulse_freq_p_arr).pow(2))
+        )
 
         if n_sample > 1:
             states = states_n

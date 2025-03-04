@@ -312,6 +312,7 @@ def roll_out(
         )
     elif pred_type == 2:
         role_long[:, 5] = next_pulse_flag[:, roleOrder]
+        dim = 2
 
         # if acc >= 0 and acc < 4:
         #     role_long[:, dim : dim * 2] = next_vel[:, roleOrder, :]

@@ -21,29 +21,55 @@ sns.set(
 parser = argparse.ArgumentParser()
 parser.add_argument("--bat_type", type=str, required=True)
 parser.add_argument("--model_type", type=str, default="VRNN")
+parser.add_argument("--pulse_pred", type=bool, default=False)
 args, _ = parser.parse_known_args()
 bat_type = args.bat_type
 model_type = args.model_type
-
+# folder_path = "kikumodel_yubi"
+pulse_flag = args.pulse_pred
+folder_path = f"{bat_type}/{model_type}"
 
 with open(
-    f"./weights/for_paper/{bat_type}/{model_type}/params.p",
+    f"./weights/for_paper/{folder_path}/params.p",
     "rb",
 ) as f:
     param = np.load(f, allow_pickle=True)
     # print(param)
     predict_time = param["burn_in"]
+
+
 with open(
-    f"./weights/for_paper/{bat_type}/{model_type}/samples.p",
+    f"./weights/for_paper/{folder_path}/samples.p",
     "rb",
 ) as f:
     data_test = np.load(f, allow_pickle=True)
 
+
 with open(
-    f"./weights/for_paper/{bat_type}/{model_type}/samples_val.p",
+    f"./weights/for_paper/{folder_path}/samples_val.p",
     "rb",
 ) as f:
     data_val = np.load(f, allow_pickle=True)
+
+
+# with open(
+#     f"./weights/for_paper/{bat_type}/{model_type}/params.p",
+#     "rb",
+# ) as f:
+#     param = np.load(f, allow_pickle=True)
+#     # print(param)
+#     predict_time = param["burn_in"]
+# with open(
+#     f"./weights/for_paper/{bat_type}/{model_type}/samples.p",
+#     "rb",
+# ) as f:
+#     data_test = np.load(f, allow_pickle=True)
+
+# with open(
+#     f"./weights/for_paper/{bat_type}/{model_type}/samples_val.p",
+#     "rb",
+# ) as f:
+#     data_val = np.load(f, allow_pickle=True)
 
 # import pdb; pdb.set_trace()
 
@@ -184,6 +210,7 @@ def write_csv(
     loss_velocity,
     vel_measured_list,
     vel_predicted_list,
+    sample_type,
 ):
     env_name = get_env_name(env_num)
     env_name_for_loss = [env_name] * len(loss_position)
@@ -205,21 +232,35 @@ def write_csv(
     }
     df_vel = pd.DataFrame(vel_dataset_for_pd)
 
-    df_loss.to_csv(
-        f"./weights/for_paper/{bat_type}/{model_type}/results/loss.csv",
-        mode="a",
-        index=False,
-        header=False,
-    )
-    df_vel.to_csv(
-        f"./weights/for_paper/{bat_type}/{model_type}/results/velocity.csv",
-        mode="a",
-        index=False,
-        header=False,
-    )
+    if sample_type == "TEST":
+        df_loss.to_csv(
+            f"./weights/for_paper/{folder_path}/results/loss.csv",
+            mode="a",
+            index=False,
+            header=False,
+        )
+        df_vel.to_csv(
+            f"./weights/for_paper/{folder_path}/results/velocity.csv",
+            mode="a",
+            index=False,
+            header=False,
+        )
+    elif sample_type == "VAL":
+        df_loss.to_csv(
+            f"./weights/for_paper/{folder_path}/results/loss_val.csv",
+            mode="a",
+            index=False,
+            header=False,
+        )
+        df_vel.to_csv(
+            f"./weights/for_paper/{folder_path}/results/velocity_val.csv",
+            mode="a",
+            index=False,
+            header=False,
+        )
 
 
-def calc(target_data, pp):
+def calc(target_data, pp, sample_type):
     loss_postion_list = []
     loss_velocity_list = []
     vel_m_list = []
@@ -254,6 +295,7 @@ def calc(target_data, pp):
             loss_velocity,
             vel_measured_list,
             vel_predicted_list,
+            sample_type,
         )
 
         obs_x, obs_y = calc_obs(target_data, episode)
@@ -284,12 +326,15 @@ def calc(target_data, pp):
             sort=False,
             color="red",
         )
-        if False:
+        if pulse_flag:
+            print(pulse_measured_list)
+            print(pulse_predicted_list)
+            input()
             for i in range(len(pulse_measured_list)):
                 if pulse_measured_list[i] >= 0.5:
                     sns.scatterplot(
-                        pos_x_measured_list[i],
-                        pos_y_measured_list[i],
+                        x=pos_x_measured_list[i],
+                        y=pos_y_measured_list[i],
                         label="measured pulse timing",
                         color="w",
                         edgecolors="#1f77b4",
@@ -298,8 +343,8 @@ def calc(target_data, pp):
                     )
                 if pulse_predicted_list[i] >= 0.5:
                     sns.scatterplot(
-                        pos_x_predicted_list[i],
-                        pos_y_predicted_list[i],
+                        x=pos_x_predicted_list[i],
+                        y=pos_y_predicted_list[i],
                         label="predicted pulse timing",
                         color="w",
                         edgecolors="#d62728",
@@ -338,23 +383,19 @@ def calc(target_data, pp):
 def main():
     # val data resutls
     print("calc validation data")
-    os.makedirs(
-        f"./weights/for_paper/{bat_type}/{model_type}/results", exist_ok=True
-    )
+    os.makedirs(f"./weights/for_paper/{folder_path}/results", exist_ok=True)
     pp = PdfPages(
-        f"./weights/for_paper/{bat_type}/{model_type}/results/topview_vrnn_{bat_type}_val_with_legend.pdf"
+        f"./weights/for_paper/{folder_path}/results/topview_{model_type}_{bat_type}_val_with_legend.pdf"
     )
-    calc(data_val, pp)
+    calc(data_val, pp, "VAL")
 
     # test data resutls
     print("calc test data")
-    os.makedirs(
-        f"./weights/for_paper/{bat_type}/{model_type}/results", exist_ok=True
-    )
+    os.makedirs(f"./weights/for_paper/{folder_path}/results", exist_ok=True)
     pp = PdfPages(
-        f"./weights/for_paper/{bat_type}/{model_type}/results/topview_vrnn_{bat_type}_with_legend.pdf"
+        f"./weights/for_paper/{folder_path}/results/topview_{model_type}_{bat_type}_with_legend.pdf"
     )
-    calc(data_test, pp)
+    calc(data_test, pp, "TEST")
 
 
 if __name__ == "__main__":

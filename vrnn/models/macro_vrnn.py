@@ -1101,7 +1101,7 @@ class MACRO_VRNN(nn.Module):
 
                     elif self.pred_type == 2:
                         # here under concidaration
-                        # dec_mean_t = states
+                        dec_mean_t = x_t0
                         dec_pulse_t = self.dec_pulse[i](dec_t)
 
                     (
@@ -2080,6 +2080,7 @@ class MACRO_VRNN(nn.Module):
                             ).to(device)
 
                     elif self.pred_type == 2:
+                        dec_mean_t = x_t0
                         dec_pulse_t = self.dec_pulse[i](dec_t)
                     # objective function
                     pulse_loss = nn.BCELoss()
@@ -2328,14 +2329,23 @@ class MACRO_VRNN(nn.Module):
                     if acc == 2:  # and self.L_acc:
                         dec_mean_t0 = dec_mean_t
                         dec_std_t0 = dec_std_t
-                    del (
-                        dec_mean_t,
-                        dec_std_t,
-                        state_in,
-                        x_t0,
-                        current_pos,
-                        y_t,
-                    )
+                    if self.pred_type == 2:
+                        del (
+                            dec_mean_t,
+                            state_in,
+                            x_t0,
+                            current_pos,
+                            y_t,
+                        )
+                    else:
+                        del (
+                            dec_mean_t,
+                            dec_std_t,
+                            state_in,
+                            x_t0,
+                            current_pos,
+                            y_t,
+                        )
 
                     if acc >= 0:
                         del (

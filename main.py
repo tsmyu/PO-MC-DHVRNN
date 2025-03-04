@@ -97,8 +97,6 @@ parser.add_argument(
     help="if predict pulse timing or not, 0:predict pulse timing, 1: not predict pulse flag, 2: only predict pulse timig (not predict velocity)",
 )
 args, _ = parser.parse_known_args()
-if args.pred_type == 2:
-    raise ValueError("pulse only prediction is still under concidaration.")
 
 # directories
 main_dir = "../"  # './'
@@ -667,7 +665,7 @@ if __name__ == "__main__":
     # train pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/yubi_train.pkl",
+            os.path.dirname(game_files) + "/kiku_train.pkl",
             "rb",
         ) as f:
             X_train_all = np.load(f, allow_pickle=True)
@@ -677,7 +675,7 @@ if __name__ == "__main__":
     # test pickle load
     try:
         with open(
-            os.path.dirname(game_files) + "/yubi_test.pkl",
+            os.path.dirname(game_files) + "/kiku_test.pkl",
             "rb",
         ) as f:
             X_test_all = np.load(f, allow_pickle=True)
@@ -690,7 +688,7 @@ if __name__ == "__main__":
 
     len_seqs = len(X_train_all[0])
     X_ind = np.arange(len_seqs)
-    # random_state default for yubi is 41, for kiku is 46
+    # random_state default for yubi is 41, for kiku is 41
     ind_train, ind_val, _, _ = train_test_split(
         X_ind, X_ind, test_size=1 / val_devide, random_state=41
     )

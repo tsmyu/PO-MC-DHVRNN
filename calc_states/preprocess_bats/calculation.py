@@ -78,6 +78,8 @@ def get_env_name(env_num):
         env_name = "Env7"
     elif env_num == 8:
         env_name = "Test"
+    else:
+        raise KeyError(f"env_num={env_num}")
 
     return env_name
 

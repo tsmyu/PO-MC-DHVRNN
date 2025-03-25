@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import json
+import numpy as np
 
 from vrnn.models.utils import (
     parse_model_params,
@@ -1625,6 +1626,10 @@ class MACRO_VRNN(nn.Module):
                     self.bn_dec[i] = self.bn_dec[i].to(device)
 
         states_n = [states.clone() for _ in range(n_sample)]
+        states_std = torch.zeros(
+            states.shape[0], states.shape[1], states.shape[2], 2
+        )
+        states_std_n = [states_std.clone() for _ in range(n_sample)]
         bat_species = int(states[0][0][0][7])
         if bat_species >= 200:
             obs_point_dict = json.load(
@@ -1682,6 +1687,7 @@ class MACRO_VRNN(nn.Module):
                         ].transpose(0, 1)
 
                 prediction_all = torch.zeros(batchSize, n_agents, x_dim)
+                prediction_std = torch.zeros(batchSize, n_agents, x_dim)
                 for i in range(n_agents):
                     y_t = states_n[n][t][i].clone()
 
@@ -2123,6 +2129,7 @@ class MACRO_VRNN(nn.Module):
                     # acc
                     if self.dataset == "bat":
                         v_t1 = dec_mean_t[:, :2]
+                        v_t1_std = dec_std_t[:, :2]
                         next_pos = current_pos + v_t1 * fs
                     elif acc == 1 or acc == 3:
                         v_t1 = dec_mean_t[:, 2:4]
@@ -2261,6 +2268,7 @@ class MACRO_VRNN(nn.Module):
                             prediction_all[:, i, x_dim - 1] = dec_pulse_t[:, 0]
                         elif self.pred_type == 1:
                             prediction_all[:, i, :x_dim] = dec_mean_t[:, :x_dim]
+                            prediction_std[:, i, :x_dim] = dec_std_t[:, :x_dim]
                         elif self.pred_type == 2:
                             prediction_all[:, i, x_dim - 1] = dec_pulse_t[:, 0]
 
@@ -2380,21 +2388,24 @@ class MACRO_VRNN(nn.Module):
                             y_t_pre = states_n[n][t - 1][i].clone()
                             y_t = states_n[n][t][i].clone()  # state
                             y_t1i = states[t + 1][i].clone()
-                            states_n[n][t + 1][i] = roll_out(
-                                y_t_pre,
-                                y_t,
-                                y_t1i,
-                                prediction_all,
-                                acc,
-                                self.params["normalize"],
-                                n_agents,
-                                n_feat,
-                                ball_dim,
-                                fs,
-                                batchSize,
-                                i,
-                                self.pred_type,
-                                obs_point_dict,
+                            states_n[n][t + 1][i], states_std_n[n][t + 1][i] = (
+                                roll_out(
+                                    y_t_pre,
+                                    y_t,
+                                    y_t1i,
+                                    prediction_all,
+                                    prediction_std,
+                                    acc,
+                                    self.params["normalize"],
+                                    n_agents,
+                                    n_feat,
+                                    ball_dim,
+                                    fs,
+                                    batchSize,
+                                    i,
+                                    self.pred_type,
+                                    obs_point_dict,
+                                )
                             )
                             del v_t1, next_pos
 
@@ -2466,14 +2477,7 @@ class MACRO_VRNN(nn.Module):
         if n_sample > 1:
             states = states_n
 
-        return (
-            states_n,
-            macro_intents,
-            hard_att,
-            out,
-            out2,
-            y_t,
-        )
+        return (states_n, macro_intents, hard_att, out, out2, y_t, states_std_n)
 
     def CF_oneHot(
         self,

@@ -11,6 +11,7 @@ from math import sqrt
 import glob
 import os
 import sys
+import pickle
 import math
 import warnings
 import copy
@@ -107,6 +108,7 @@ path_init = "./weights/"  # './weights_vrnn/init/'
 
 def add_sample(
     sample,
+    sample_std,
     data,
     samples,
     samples_true,
@@ -115,6 +117,9 @@ def add_sample(
     r=0,
     n_smp_b=1,
 ):
+    print(sample[0].shape)
+    print(sample_std[0].shape)
+    input()
     for i in range(n_smp_b):
         sample0 = (
             sample[0].detach().cpu().numpy()
@@ -204,6 +209,7 @@ def run_epoch(train, rollout, hp, samples, samples_true):
                         batch_losses,
                         batch_losses2,
                         prediction,
+                        sample_std,
                     ) = model.sample(
                         data,
                         macro_intents,
@@ -224,6 +230,7 @@ def run_epoch(train, rollout, hp, samples, samples_true):
                     batch_losses,
                     batch_losses2,
                     prediction,
+                    sample_std,
                 ) = model.sample(
                     data, rollout=True, burn_in=hp["burn_in"], L_att=hp["L_att"]
                 )
@@ -233,7 +240,13 @@ def run_epoch(train, rollout, hp, samples, samples_true):
                 # print(prediction_list)
                 # writer.add_scalar('test/prediction', x_pre, y_pre)
             samples, samples_true = add_sample(
-                sample, data, samples, samples_true, batchSize, batch_idx
+                sample,
+                sample_std,
+                data,
+                samples,
+                samples_true,
+                batchSize,
+                batch_idx,
             )
 
         for key in batch_losses:
@@ -251,6 +264,7 @@ def run_epoch(train, rollout, hp, samples, samples_true):
         losses[key] /= len(loader.dataset)
     for key in losses2:
         losses2[key] /= len(loader.dataset)
+
     return losses, losses2, samples, samples_true
 
 
@@ -663,104 +677,126 @@ if __name__ == "__main__":
         n_feat = 10 + states_num
 
     # train pickle load
-    try:
-        with open(
-            os.path.dirname(game_files) + "/kiku_train.pkl",
-            "rb",
-        ) as f:
-            X_train_all = np.load(f, allow_pickle=True)
-    except:
-        raise FileExistsError("train pickle is not exist.")
+    # try:
+    #     with open(
+    #         os.path.dirname(game_files) + "/kiku_train.pkl",
+    #         "rb",
+    #     ) as f:
+    #         X_train_all = np.load(f, allow_pickle=True)
+    # except:
+    #     raise FileExistsError("train pickle is not exist.")
 
     # test pickle load
-    try:
-        with open(
-            os.path.dirname(game_files) + "/kiku_test.pkl",
-            "rb",
-        ) as f:
-            X_test_all = np.load(f, allow_pickle=True)
-    except:
-        raise FileExistsError("test pickle is not exist.")
+    with open(
+        os.path.dirname(game_files) + "/kiku.pkl",
+        "rb",
+    ) as f:
+        X_data_all = pickle.load(f)
 
-    X_train_all, Y_train_all = get_bat_sequence_data(
-        X_train_all, args.in_sma
+    X_data_all, Y_data_all = get_bat_sequence_data(
+        X_data_all, args.in_sma
     )  # [role][seqs][steps,feats]
 
-    len_seqs = len(X_train_all[0])
+    len_seqs = len(X_data_all[0])
     X_ind = np.arange(len_seqs)
     # random_state default for yubi is 41, for kiku is 41
-    ind_train, ind_val, _, _ = train_test_split(
-        X_ind, X_ind, test_size=1 / val_devide, random_state=41
+    ind_train, ind_val, ind_test = split_baseon_env(X_data_all)
+    # ind_train, ind_test, _, _ = train_test_split(
+    #     X_ind, X_ind, test_size=2 / val_devide, random_state=42
+    # )
+
+    featurelen = X_data_all[0][0].shape[1]
+
+    X_train_all = np.zeros(
+        [n_roles, len(ind_train), totalTimeSteps + 4, featurelen]
     )
-
-    featurelen = X_train_all[0][0].shape[1]
-    len_seqs_tr = len(ind_train)
-    # print(len_seqs_tr)
-    offSet_tr = math.floor(len_seqs_tr / batchSize)
-    batchSize_val = len(ind_val)
-
-    X_all = np.zeros([n_roles, len(ind_train), totalTimeSteps + 4, featurelen])
     X_val_all = np.zeros(
         [n_roles, len(ind_val), totalTimeSteps + 4, featurelen]
     )
-    for i, X_train in enumerate(X_train_all):
+    X_test_all = np.zeros(
+        [n_roles, len(ind_test), totalTimeSteps + 4, featurelen]
+    )
+    for i, X_data in enumerate(X_data_all):
         i_tr = 0
         i_val = 0
+        i_test = 0
         for b in range(len_seqs):
             if set([b]).issubset(set(ind_train)):
                 for r in range(totalTimeSteps + 4):
-                    X_all[i][i_tr][r][:] = np.squeeze(X_train[b][r, :])
+                    X_train_all[i][i_tr][r][:] = np.squeeze(X_data[b][r, :])
                 i_tr += 1
+            elif set([b]).issubset(set(ind_val)):
+                for r in range(totalTimeSteps + 4):
+                    X_val_all[i][i_val][r][:] = np.squeeze(X_data[b][r, :])
+                i_val += 1
             else:
                 for r in range(totalTimeSteps + 4):
-                    X_val_all[i][i_val][r][:] = np.squeeze(X_train[b][r, :])
-                i_val += 1
-
-    print("create train sequences")
-
-    del X_train_all
-
-    # macro intents
-    macro_intents = label_macro_intents(X_all)
-    macro_intents_val = label_macro_intents(X_val_all)
-
-    # for test data-------------
-    X_test_all, Y_test_all = get_bat_sequence_data(X_test_all, args.in_sma)
-
-    if args.in_out:
-        X_test_test_all = Y_test_all
-
-    len_seqs_val = len(X_val_all[0])
-    len_seqs_test = len(X_test_all[0])
-    batchSize_test = len_seqs_test  # args.batchsize # 32
-    len_seqs_test0 = len_seqs_test
-    ind_test = np.arange(len_seqs_test)
-
-    X_test_test_all = np.zeros(
-        [n_roles, len_seqs_test, totalTimeSteps_test + 4, featurelen]
-    )
-    for i, X_test in enumerate(X_test_all):
-        i_te = 0
-        for b in range(len_seqs_test0):
-            if args.data == "nba":
-                if set([b]).issubset(set(ind_test)):
-                    for r in range(totalTimeSteps + 4):
-                        X_test_test_all[i][i_te][r][:] = np.squeeze(
-                            X_test[b][r, :]
-                        )
-                    i_te += 1
-            elif args.data == "soccer":
-                for r in range(totalTimeSteps_test + 4):
-                    X_test_test_all[i][b][r][:] = np.squeeze(X_test[b][r, :])
-            elif args.data == "bat":
-                for r in range(totalTimeSteps_test + 4):
-                    X_test_test_all[i][b][r][:] = np.squeeze(X_test[b][r, :])
+                    X_test_all[i][i_test][r][:] = np.squeeze(X_data[b][r, :])
+                i_test += 1
 
     print("create test sequences")
+
+    # len_seqs_tr = len(ind_train)
+    # offSet_tr = math.floor(len_seqs_tr / batchSize)
+    # batchSize_test = len(ind_test)
+    # split train and validation data
+    len_train_seqs = len(ind_train)
+    X_train_ind = np.arange(len_train_seqs)
+    # ind_train, ind_val, _, _ = train_test_split(
+    #     X_train_ind, X_train_ind, test_size=1 / val_devide, random_state=42
+    # )
+    # X_train_all = X_all[:, ind_train, :, :]
+    # X_val_all = X_all[:, ind_val, :, :]
+
+    len_seqs_tr = len(ind_train)
+    len_seqs_val = len(ind_val)
+    len_seqs_test = len(ind_test)
+    offSet_tr = math.floor(len_seqs_tr / batchSize)
+    batchSize_test = len(ind_test)
+
+    del X_data_all
+
+    # macro intents
+    macro_intents = label_macro_intents(X_train_all)
+    macro_intents_val = label_macro_intents(X_val_all)
+
+    # # for test data-------------
+    # X_test_all, Y_test_all = get_bat_sequence_data(X_test_all, args.in_sma)
+
+    # if args.in_out:
+    #     X_test_test_all = Y_test_all
+
+    # len_seqs_val = len(X_val_all[0])
+    # len_seqs_test = len(X_test_all[0])
+    # batchSize_test = len_seqs_test  # args.batchsize # 32
+    # len_seqs_test0 = len_seqs_test
+    # ind_test = np.arange(len_seqs_test)
+
+    # X_test_test_all = np.zeros(
+    #     [n_roles, len_seqs_test, totalTimeSteps_test + 4, featurelen]
+    # )
+    # for i, X_test in enumerate(X_test_all):
+    #     i_te = 0
+    #     for b in range(len_seqs_test0):
+    #         if args.data == "nba":
+    #             if set([b]).issubset(set(ind_test)):
+    #                 for r in range(totalTimeSteps + 4):
+    #                     X_test_test_all[i][i_te][r][:] = np.squeeze(
+    #                         X_test[b][r, :]
+    #                     )
+    #                 i_te += 1
+    #         elif args.data == "soccer":
+    #             for r in range(totalTimeSteps_test + 4):
+    #                 X_test_test_all[i][b][r][:] = np.squeeze(X_test[b][r, :])
+    #         elif args.data == "bat":
+    #             for r in range(totalTimeSteps_test + 4):
+    #                 X_test_test_all[i][b][r][:] = np.squeeze(X_test[b][r, :])
+
+    print("create train and validation sequences")
     # if offSet_tr > 0:
     # print(offSet_tr)
     for j in range(offSet_tr):
-        tmp_data = X_all[:, j * batchSize : (j + 1) * batchSize, :, :]
+        tmp_data = X_train_all[:, j * batchSize : (j + 1) * batchSize, :, :]
         tmp_label = macro_intents[j * batchSize : (j + 1) * batchSize, :, :]
         with open(game_files + "_tr" + str(j) + ".pkl", "wb") as f:
             pickle.dump(
@@ -785,21 +821,21 @@ if __name__ == "__main__":
     # with open(game_files_val, 'wb') as f:
     #    pickle.dump([X_val_all,macro_intents_val], f, protocol=4)
 
-    macro_intents_te = label_macro_intents(X_test_test_all)
+    macro_intents_te = label_macro_intents(X_test_all)
     batchte = int(len_seqs_test / J)
     for j in range(J):
         if j < J - 1:
-            tmp_data = X_test_test_all[:, j * batchte : (j + 1) * batchte, :, :]
+            tmp_data = X_test_all[:, j * batchte : (j + 1) * batchte, :, :]
             tmp_label = macro_intents_te[j * batchte : (j + 1) * batchte, :, :]
         else:
-            tmp_data = X_test_test_all[:, j * batchte :, :, :]
+            tmp_data = X_test_all[:, j * batchte :, :, :]
             tmp_label = macro_intents_te[j * batchte :, :, :]
         with open(game_files + "_te_" + str(j) + ".pkl", "wb") as f:
             pickle.dump([tmp_data, tmp_label], f, protocol=4)
     # with open(game_files_te, 'wb') as f:
     #    pickle.dump([X_test_test_all,macro_intents_te], f, protocol=4)
 
-    del X_val_all, X_test_test_all, tmp_data
+    del X_val_all, X_test_all, tmp_data
 
     print("save train and test sequences")
     with open(game_files + "_tr" + str(0) + ".pkl", "rb") as f:
@@ -1228,7 +1264,7 @@ if __name__ == "__main__":
                 for t in range(n_sample)
             ]
             # TRAIN
-            train_loss, train_loss2, _, _ = run_epoch(
+            train_loss, train_loss2, _, _, _ = run_epoch(
                 train=1,
                 rollout=False,
                 hp=hyperparams,
@@ -1294,6 +1330,7 @@ if __name__ == "__main__":
 
                 torch.save(model.state_dict(), filename)
                 save_sample(samples, samples_true, "val")
+
                 print("##### Best model #####")
                 if (
                     epoch > pretrain_time
@@ -1383,9 +1420,10 @@ if __name__ == "__main__":
     if True:
         print("test sample")
         # Sample trajectory
+        # for std + 2
         samples = [
             np.zeros(
-                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen)
+                (args.horizon + 1, args.n_agents, len_seqs_test, featurelen + 2)
             )
             for t in range(n_sample)
         ]
@@ -1395,6 +1433,7 @@ if __name__ == "__main__":
             )
             for t in range(n_sample)
         ]
+
         hard_att = np.zeros(
             (
                 args.horizon,
@@ -1435,6 +1474,7 @@ if __name__ == "__main__":
                         output,
                         output2,
                         prediction,
+                        sample_std,
                     ) = model.sample(
                         data,
                         macro_intents,
@@ -1456,14 +1496,16 @@ if __name__ == "__main__":
                     # writer.add_scalar('test/prediction_x', x_pre, i)
                     # writer.add_scalar('test/prediction_y', y_pre, i)
                 else:
-                    sample, _, _, output, output2, prediction = model.sample(
-                        data,
-                        rollout=True,
-                        burn_in=args.burn_in,
-                        L_att=L_att,
-                        CF_pred=False,
-                        n_sample=n_smp_b,
-                        TEST=True,
+                    (sample, _, _, output, output2, prediction, sample_std) = (
+                        model.sample(
+                            data,
+                            rollout=True,
+                            burn_in=args.burn_in,
+                            L_att=L_att,
+                            CF_pred=False,
+                            n_sample=n_smp_b,
+                            TEST=True,
+                        )
                     )
                     # x_pre = float(prediction[1][4].item())
                     # y_pre = float(prediction[1][5].item())
@@ -1475,11 +1517,23 @@ if __name__ == "__main__":
                     # writer.add_scalar('test/prediction_y', y_pre, i)
 
                 for i in range(n_smp_b):
-                    sample0 = (
-                        sample[0].detach().cpu().numpy()
-                        if n_smp_b == 1
-                        else sample[i].detach().cpu().numpy()
-                    )
+
+                    if n_smp_b == 1:
+                        x_before = sample[0][:, :, :, :4].detach().cpu().numpy()
+                        x_after = sample[0][:, :, :, 4:].detach().cpu().numpy()
+                        x_std = sample_std[0].detach().cpu().numpy()
+                        sample0 = np.concatenate(
+                            [x_before, x_std, x_after], axis=3
+                        )
+
+                    else:
+                        x_before = sample[i][:, :, :, :4].detach().cpu().numpy()
+                        x_after = sample[i][:, :, :, 4:].detach().cpu().numpy()
+                        x_std = sample_std[i].detach().cpu().numpy()
+                        sample0 = np.concatenate(
+                            [x_before, x_std, x_after], axis=3
+                        )
+
                     data0 = (
                         data.detach().cpu().numpy()
                         if n_smp_b == 1
@@ -1741,15 +1795,17 @@ if __name__ == "__main__":
                     # (batch, agents, time, feat) => (time, agents, batch, feat)
                 data = data.permute(2, 1, 0, 3)
                 macro_intents = macro_intents.transpose(0, 1)
-                sample, _, att, _, output2, prediction = model.sample(
-                    data,
-                    macro_intents,
-                    rollout=True,
-                    burn_in=args.burn_in,
-                    L_att=L_att,
-                    CF_pred=CF_pred,
-                    n_sample=n_smp_b,
-                    TEST=True,
+                sample, _, att, _, output2, prediction, sample_std = (
+                    model.sample(
+                        data,
+                        macro_intents,
+                        rollout=True,
+                        burn_in=args.burn_in,
+                        L_att=L_att,
+                        CF_pred=CF_pred,
+                        n_sample=n_smp_b,
+                        TEST=True,
+                    )
                 )
                 att = att.detach().cpu().numpy()
                 # x_pre = float(prediction[1][4].item())

@@ -8,6 +8,7 @@ import statistics
 import json
 from natsort import natsorted
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.colors import LinearSegmentedColormap
 import argparse
 
 sns.set(
@@ -18,24 +19,27 @@ sns.set(
     rc={"lines.linewidth": 3, "grid.linestyle": "--"},
 )
 
+# cmap = LinearSegmentedColormap.from_list("red_blue", ["blue", "red"])
 parser = argparse.ArgumentParser()
 parser.add_argument("--bat_type", type=str, required=True)
 parser.add_argument("--model_type", type=str, default="VRNN")
 parser.add_argument("--pulse_pred", type=bool, default=False)
+parser.add_argument("--flag_valdata", type=bool, default=False)
 args, _ = parser.parse_known_args()
 bat_type = args.bat_type
 model_type = args.model_type
-# folder_path = "kikumodel_yubi"
+folder_path = "yubi/train_each/seed_40/with_std"
 pulse_flag = args.pulse_pred
-folder_path = f"{bat_type}/{model_type}"
+flag_val = args.flag_valdata
+# folder_path = f"{bat_type}/{model_type}"
 
 with open(
     f"./weights/for_paper/{folder_path}/params.p",
     "rb",
 ) as f:
     param = np.load(f, allow_pickle=True)
-    # print(param)
     predict_time = param["burn_in"]
+    dt = param["fs"]
 
 
 with open(
@@ -44,12 +48,12 @@ with open(
 ) as f:
     data_test = np.load(f, allow_pickle=True)
 
-
-with open(
-    f"./weights/for_paper/{folder_path}/samples_val.p",
-    "rb",
-) as f:
-    data_val = np.load(f, allow_pickle=True)
+if flag_val:
+    with open(
+        f"./weights/for_paper/{folder_path}/samples_val.p",
+        "rb",
+    ) as f:
+        data_val = np.load(f, allow_pickle=True)
 
 
 # with open(
@@ -110,10 +114,12 @@ def calc_data(
     pulse_predicted_list = []
     vel_measured_list = []
     vel_predicted_list = []
+    vel_x_std_predicted_list = []
+    vel_y_std_predicted_list = []
     loss_position = []
     loss_velocity = []
-    env_num = data[0][0][0][0][episode][6]
-    bat_name = data[0][0][0][0][episode][7]
+    env_num = data[0][0][0][0][episode][8]
+    bat_name = data[0][0][0][0][episode][9]
 
     for step in range(len(data[0][0])):
         if step <= predict_time:
@@ -129,7 +135,7 @@ def calc_data(
             pos_x_predicted_list.append(pos_x_predicted)
             pos_y_predicted_list.append(pos_y_predicted)
             pulse_measured_list.append(data[1][0][step][0][episode][5])
-            pulse_predicted_list.append(data[0][0][step][0][episode][5])
+            pulse_predicted_list.append(data[0][0][step][0][episode][7])
             loss_position.append(
                 np.sqrt(
                     (pos_y_predicted - pos_y_measured) ** 2
@@ -140,12 +146,16 @@ def calc_data(
             vel_y_measured = data[1][0][step][0][episode][3]
             vel_x_predicted = data[0][0][step][0][episode][2]
             vel_y_predicted = data[0][0][step][0][episode][3]
+            vel_x_std_predicted = data[0][0][step][0][episode][4]
+            vel_y_std_predicted = data[0][0][step][0][episode][5]
             vel_measured_list.append(
                 np.sqrt(vel_x_measured**2 + vel_y_measured**2)
             )
             vel_predicted_list.append(
                 np.sqrt(vel_x_predicted**2 + vel_y_predicted**2)
             )
+            vel_x_std_predicted_list.append(vel_x_std_predicted)
+            vel_y_std_predicted_list.append(vel_y_std_predicted)
             loss_velocity.append(
                 np.sqrt(
                     (vel_y_predicted - vel_y_measured) ** 2
@@ -164,13 +174,15 @@ def calc_data(
         pulse_predicted_list,
         vel_measured_list,
         vel_predicted_list,
+        vel_x_std_predicted_list,
+        vel_y_std_predicted_list,
         loss_position,
         loss_velocity,
     )
 
 
 def calc_obs(data, episode):
-    Env_name = get_env_name(data[0][0][0][0][episode][6])
+    Env_name = get_env_name(data[0][0][0][0][episode][8])
 
     obs_point_dict = json.load(
         open(
@@ -260,11 +272,31 @@ def write_csv(
         )
 
 
+def plot_gaussian(x0, y0, std_x, std_y, ax, levels=10):
+
+    x = np.linspace(x0 - 3 * std_x, x0 + 3 * std_x, 100)
+    y = np.linspace(y0 - 3 * std_y, y0 + 3 * std_y, 100)
+    X_grid, Y_grid = np.meshgrid(x, y)
+
+    Z = (1 / (2 * np.pi * std_x * std_y)) * np.exp(
+        -(
+            ((X_grid - x0) ** 2) / (2 * std_x**2)
+            + ((Y_grid - y0) ** 2) / (2 * std_y**2)
+        )
+    )
+
+    levels_array = np.linspace(Z.min(), Z.max(), levels)
+
+    ax.contour(X_grid, Y_grid, Z, levels=levels, colors="blue", alpha=0.7)
+
+
 def calc(target_data, pp, sample_type):
     loss_postion_list = []
     loss_velocity_list = []
     vel_m_list = []
     vel_p_list = []
+    vel_x_std_list = []
+    vel_y_std_list = []
     for episode in range(len(target_data[0][0][0][0])):
         (
             env_num,
@@ -277,6 +309,8 @@ def calc(target_data, pp, sample_type):
             pulse_predicted_list,
             vel_measured_list,
             vel_predicted_list,
+            vel_x_std_predicted_list,
+            vel_y_std_predicted_list,
             loss_position,
             loss_velocity,
         ) = calc_data(
@@ -288,6 +322,8 @@ def calc(target_data, pp, sample_type):
         loss_velocity_list.append(loss_velocity)
         vel_m_list.append(vel_measured_list)
         vel_p_list.append(vel_predicted_list)
+        vel_x_std_list.append(vel_x_std_predicted_list)
+        vel_y_std_list.append(vel_y_std_predicted_list)
         write_csv(
             env_num,
             bat_name,
@@ -319,17 +355,25 @@ def calc(target_data, pp, sample_type):
             linestyle="--",
             color="gray",
         )
+        for i in range(0, len(vel_x_std_predicted_list)):
+            pos_std_x = vel_x_std_predicted_list[i] * dt
+            pos_std_y = vel_y_std_predicted_list[i] * dt
+            plot_gaussian(
+                pos_x_predicted_list[i],
+                pos_y_predicted_list[i],
+                pos_std_x,
+                pos_std_y,
+                ax,
+            )
         sns.lineplot(
             x=pos_x_predicted_list,
             y=pos_y_predicted_list,
             label="predicted",
             sort=False,
             color="red",
+            lw=2,
         )
         if pulse_flag:
-            print(pulse_measured_list)
-            print(pulse_predicted_list)
-            input()
             for i in range(len(pulse_measured_list)):
                 if pulse_measured_list[i] >= 0.5:
                     sns.scatterplot(
@@ -382,12 +426,13 @@ def calc(target_data, pp, sample_type):
 
 def main():
     # val data resutls
-    print("calc validation data")
-    os.makedirs(f"./weights/for_paper/{folder_path}/results", exist_ok=True)
-    pp = PdfPages(
-        f"./weights/for_paper/{folder_path}/results/topview_{model_type}_{bat_type}_val_with_legend.pdf"
-    )
-    calc(data_val, pp, "VAL")
+    if flag_val:
+        print("calc validation data")
+        os.makedirs(f"./weights/for_paper/{folder_path}/results", exist_ok=True)
+        pp = PdfPages(
+            f"./weights/for_paper/{folder_path}/results/topview_{model_type}_{bat_type}_val_with_legend.pdf"
+        )
+        calc(data_val, pp, "VAL")
 
     # test data resutls
     print("calc test data")

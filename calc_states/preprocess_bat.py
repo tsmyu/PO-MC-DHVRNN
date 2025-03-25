@@ -135,6 +135,7 @@ def calc_states(
     pulse_flag,
     obs_point_dict,
 ):
+    # prev_f = [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state(251dim)]
     env_name = int(prev_f[6])
     if dim == 3:
         print("not concider in 3-dim yet")
@@ -187,7 +188,7 @@ def calc_bat_states(
     obs_point_dict,
 ):
     """
-    prev_f = [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state(251dim)]
+    prev_f = [X, Y, Vx, Vy, Vx_std, Vy_std, θ, pulse_flag, Env, Bat, state(251dim)]
     next_point = [X, Y]
     """
     prev_f = prev_f.to("cpu").detach().numpy().copy()

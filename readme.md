@@ -1,4 +1,4 @@
-## Decentralized Policy Learning with Partial Observation and Mechanical Constraints
+## Flight trajectory modeling reveals species-specific obstacle avoidance policies in echolocating bats
 
 This is the Python code for imitation learning for echolocating bats.
 

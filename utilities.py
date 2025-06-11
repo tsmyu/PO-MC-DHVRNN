@@ -726,6 +726,55 @@ def id_teams(event_dfs):
 
 def split_baseon_env(target_array):
     """
+    Split data based on environment labels:
+    - env_labels 1, 2, 3 go to train set (with 10% used for validation)
+    - env_labels 4, 5, 6, 7 go to test set
+    """
+    env_labels = target_array[0, :, 0, 6]
+    
+    # Get indices for train/val environments (1, 2, 3)
+    train_val_env_nums = [1, 2, 3]
+    train_val_indices = []
+    for env_num in train_val_env_nums:
+        indices = np.where(env_labels == env_num)[0]
+        train_val_indices.append(indices)
+    
+    # Combine all train/val indices
+    train_val_indices = np.concatenate(train_val_indices) if train_val_indices else np.array([])
+    
+    # Randomly shuffle the indices and split into train (90%) and validation (10%)
+    np.random.seed(42)  # for reproducibility
+    np.random.shuffle(train_val_indices)
+    val_size = int(len(train_val_indices) * 0.1)
+    val_idx = train_val_indices[:val_size]
+    train_idx = train_val_indices[val_size:]
+    
+    # Get indices for test environments (4, 5, 6, 7)
+    test_env_nums = [4, 5, 6, 7]
+    test_idx_list = []
+    for env_num in test_env_nums:
+        indices = np.where(env_labels == env_num)[0]
+        test_idx_list.append(indices)
+    
+    # Combine all test indices
+    test_idx = np.sort(np.concatenate(test_idx_list)) if test_idx_list else np.array([])
+    
+    # Sort the final index arrays
+    train_idx = np.sort(train_idx)
+    val_idx = np.sort(val_idx)
+    
+    # Print summary
+    print(f"Train environments: {train_val_env_nums} (90% of data)")
+    print(f"Validation environments: {train_val_env_nums} (10% of data)")
+    print(f"Test environments: {test_env_nums}")
+    print(f"Train data count: {len(train_idx)}")
+    print(f"Validation data count: {len(val_idx)}")
+    print(f"Test data count: {len(test_idx)}")
+    
+    return train_idx, val_idx, test_idx
+
+def split_baseon_data(target_array):
+    """
     split data 0.8 for train, 0.2 for test each envs
     """
     env_labels = target_array[0, :, 0, 6]

@@ -119,7 +119,6 @@ def add_sample(
 ):
     print(sample[0].shape)
     print(sample_std[0].shape)
-    input()
     for i in range(n_smp_b):
         sample0 = (
             sample[0].detach().cpu().numpy()
@@ -699,8 +698,8 @@ if __name__ == "__main__":
 
     len_seqs = len(X_data_all[0])
     X_ind = np.arange(len_seqs)
-    # random_state default for yubi is 41, for kiku is 41
-    ind_train, ind_val, ind_test = split_baseon_env(X_data_all)
+    # random_state default for yubi is 41, for kiku is 42
+    ind_train, ind_val, ind_test = split_baseon_data(X_data_all)
     # ind_train, ind_test, _, _ = train_test_split(
     #     X_ind, X_ind, test_size=2 / val_devide, random_state=42
     # )
@@ -1264,7 +1263,7 @@ if __name__ == "__main__":
                 for t in range(n_sample)
             ]
             # TRAIN
-            train_loss, train_loss2, _, _, _ = run_epoch(
+            train_loss, train_loss2, _, _ = run_epoch(
                 train=1,
                 rollout=False,
                 hp=hyperparams,

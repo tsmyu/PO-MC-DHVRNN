@@ -68,6 +68,31 @@ def subsample_sequence(events, subsample_factor, random_sample=False):
     return [subsample_sequence_(ms, subsample_factor) for ms in events]
 
 
+def get_bat_sequence_data(sequence_data, in_sma):
+    # data number for a episode - 1
+    fix_data = np.zeros(
+        (sequence_data.shape[0], sequence_data.shape[1], sequence_data.shape[2]-1, sequence_data.shape[3]))
+    if in_sma:
+        # 2次元データ用
+        ans_data = np.zeros(
+            (sequence_data.shape[0], sequence_data.shape[1], sequence_data.shape[2]-1, 2))
+        one_bat_data = sequence_data[0] #1個体を仮定
+        for idx, one_episode_data in enumerate(one_bat_data):
+            fix_data[0][idx][:][:] = one_episode_data[:-1][:]
+            ans_data[0][idx][:][:] = one_episode_data[:-1, 2:4]
+    else:
+        # 3次元データ用
+        ans_data = np.zeros(
+            (sequence_data.shape[0], sequence_data.shape[1], sequence_data.shape[2]-1, 3))
+        one_bat_data = sequence_data[0] #1個体を仮定
+        for idx, one_episode_data in enumerate(one_bat_data):
+            fix_data[0][idx][:][:] = one_episode_data[:-1][:]
+            ans_data[0][idx][:][:] = one_episode_data[:-1, 4:7]
+    
+
+    return fix_data, ans_data
+
+
 def get_sequences(single_game, policy, sequence_length, overlap, n_pl, k_nearest, n_feat, velocity=0, in_sma=False):
     ''' create events where each event is a list of sequences from
         single_game with required sequence_legnth and overlap

@@ -1,0 +1,9 @@
+__pycache__/
+vrnn/datasets/
+weights/
+data/
+runs/
+teshima/
+make_results_fig/
+paper/
+

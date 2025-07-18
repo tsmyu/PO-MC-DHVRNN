@@ -1,13 +1,13 @@
-## Decentralized Policy Learning with Partial Observation and Mechanical Constraints
+## Flight trajectory modeling reveals species-specific obstacle avoidance policies in echolocating bats
 
-This is the python code for Decentralized Policy Learning with Partial Observation and Mechanical Constraints for Multi-person Modeling.
+This is the Python code for imitation learning for echolocating bats.
 
 ## Author
-Keisuke Fujii - https://sites.google.com/site/keisuke1986en/
+Yu Teshima
 
 ## Reference
-Keisuke Fujii, Naoya Takeishi, Yoshinobu Kawahara,Kazuya Takeda, "Decentralized Policy Learning with Partial Observation and Mechanical Constraints for Multi-person Modeling", arXiv preprint arXiv:2007.03155, 2020
-https://arxiv.org/abs/2007.03155
+
+Keisuke Fujii, Naoya Takeishi, Yoshinobu Kawahara,Kazuya Takeda, "Decentralized Policy Learning with Partial Observation and Mechanical Constraints for Multi-person Modeling", Neural Networks, 171, 40-52, 2024 (arXiv: https://arxiv.org/abs/2007.03155)
 
 ## Requirements
 
@@ -19,27 +19,8 @@ pip install -r requirements.txt
 ```
 
 ## Usage
- 
-* Run `run.sh` for a simiple demonstration of training and test using the NBA dataset (only one game).
 
-* Actual commands in training and test of our model are also in `run.sh` (commented).  
+```
+* python main.py --data bat --n_GorS 100 --n_roles 1 --batchsize 100 --n_epoch 200 -ev_th 100 --model MACRO_VRNN --attention -1 --acc 0 -t_step 796 --wo_macro --pred_type 1
+```
 
-* Data can be downloaded from https://github.com/rajshah4/BasketballData
-
-## Pretrained Models
-
-You can download pretrained models from `weights/` for NBA dataset as discussed in the paper.
-
-## Results
-
-Our model achieves the following performance (Table 2 in the paper):
-
-| Model name            |   position    |   velocity    |  acceleration  |
-| ----------------------|-------------- | ------------- | -------------- |
-| 1. Velocity           | 1.41 +/- 0.34 | 1.08 +/- 0.21 | 10.90 +/- 2.09 |  
-| 2. RNN-Gauss          | 1.31 +/- 0.32 | 1.05 +/- 0.13 |  1.88 +/- 0.30 |
-| 3. VRNN               | 0.71 +/- 0.17 | 0.68 +/- 0.10 |  1.43 +/- 0.20 |  
-| 4. VRNN-macro         | 0.71 +/- 0.17 | 0.68 +/- 0.10 |  1.43 +/- 0.20 |
-| 5. VRNN-Mech          | 0.69 +/- 0.17 | 0.68 +/- 0.10 |  1.37 +/- 0.20 |
-| 6. VRNN-Bi            | 0.72 +/- 0.19 | 0.66 +/- 0.10 |  1.36 +/- 0.19 |
-| 7. VRNN-macro-Bi-Mech | 0.73 +/- 0.18 | 0.68 +/- 0.10 |  1.34 +/- 0.19 |

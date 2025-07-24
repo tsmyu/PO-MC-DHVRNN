@@ -105,6 +105,16 @@ game_dir = main_dir + "data_" + args.data + "/"
 Data = LoadData(main_dir, game_dir, args.data)
 path_init = "./weights/"  # './weights_vrnn/init/'
 
+# グラデーションファイルの出力パス設定
+DATA_DIR = "./result/gradients/"  # グラデーションファイルの出力ディレクトリ
+PATHS = {
+    "gradients_filename": "gradients.pkl"  # グラデーションファイルのファイル名
+}
+
+# ディレクトリが存在しない場合は作成
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
 
 def add_sample(
     sample,
@@ -167,6 +177,7 @@ def run_epoch(train, rollout, hp, samples, samples_true):
     losses = {}
     losses2 = {}
     batchSize = loader.batch_size
+    epoch_gradients = []
     for batch_idx, (data, macro_intents) in enumerate(loader):
         # print(str(batch_idx))
         d1 = {"batch_idx": batch_idx}
@@ -182,6 +193,7 @@ def run_epoch(train, rollout, hp, samples, samples_true):
             macro_intents = macro_intents.transpose(0, 1)
 
         if train == 1:
+            data.requires_grad = True
             if "MACRO" in args.model:
                 batch_losses, batch_losses2 = model(
                     data, rollout, train, macro_intents, hp=hp
@@ -191,6 +203,9 @@ def run_epoch(train, rollout, hp, samples, samples_true):
             optimizer.zero_grad()
             total_loss = sum(batch_losses.values())
             total_loss.backward()
+            input_gradients = data.grad.cpu().numpy()  # Shape: (batch_size, seq_len, input_size)
+            input_gradients_mean = input_gradients.mean(axis=(0, 1))  # Shape: (input_size,)
+            epoch_gradients.append(input_gradients_mean)
             if hp["model"] != "RNN_ATTENTION":
                 nn.utils.clip_grad_norm_(model.parameters(), clip)
             optimizer.step()
@@ -263,8 +278,10 @@ def run_epoch(train, rollout, hp, samples, samples_true):
         losses[key] /= len(loader.dataset)
     for key in losses2:
         losses2[key] /= len(loader.dataset)
+    
+    avg_gradients = np.mean(epoch_gradients, axis=0)  # Shape: (input_size,)
 
-    return losses, losses2, samples, samples_true
+    return losses, losses2, samples, samples_true, avg_gradients
 
 
 def loss_str(losses):
@@ -655,11 +672,8 @@ if __name__ == "__main__":
         else:
             outputlen0 = 4
     elif pred_type == 1:
-        # vel
-        if args.in_sma:
-            outputlen0 = 2
-        else:
-            outputlen0 = 3
+        # vel + Pxy (velocity + pulse radiation direction) - 2次元のみ
+        outputlen0 = 3  # 2次元速度 + 1次元Pxy
     elif pred_type == 2:
         outputlen0 = 1
 
@@ -669,11 +683,11 @@ if __name__ == "__main__":
     states_num = 251
     delete_num = 2  # Env and Bat
     if args.in_sma:
-        # [X, Y, Vx, Vy, theta, pulse_flag, Env, Bat, states]
-        n_feat = 8 + states_num
-    else:
-        # [X, Y, Z, Vx, Vy, Vz, theta, pulse_flag, Env, Bat, states]
+        # [X, Y, Vx, Vy, theta, pulse_flag, time, Pxy, Env, Bat, states]
         n_feat = 10 + states_num
+    else:
+        # [X, Y, Z, Vx, Vy, Vz, theta, pulse_flag, time, Pxy, Env, Bat, states]
+        n_feat = 12 + states_num
 
     # train pickle load
     # try:
@@ -687,7 +701,7 @@ if __name__ == "__main__":
 
     # test pickle load
     with open(
-        os.path.dirname(game_files) + "/kiku.pkl",
+        os.path.dirname(game_files) + "/dataset_pd_yubi.pkl",
         "rb",
     ) as f:
         X_data_all = pickle.load(f)
@@ -1041,7 +1055,8 @@ if __name__ == "__main__":
         if "MACRO" in args.model and args.pretrain > 0:
             if os.path.exists("{}_best_pretrain.pth".format(init_pthname0)):
                 state_dict = torch.load(
-                    "{}_best_pretrain.pth".format(init_pthname0)
+                    "{}_best_pretrain.pth".format(init_pthname0),
+                    weights_only=True
                 )
                 model.load_state_dict(state_dict)
                 print("best pretrain model was loaded")
@@ -1051,7 +1066,8 @@ if __name__ == "__main__":
         elif args.pretrain2 > 0:
             if os.path.exists("{}_best_pretrain2.pth".format(init_pthname0)):
                 state_dict = torch.load(
-                    "{}_best_pretrain2.pth".format(init_pthname0)
+                    "{}_best_pretrain2.pth".format(init_pthname0),
+                    weights_only=True
                 )
                 model.load_state_dict(state_dict)
                 print("best pretrain body model was loaded")
@@ -1192,6 +1208,7 @@ if __name__ == "__main__":
     }
 
     if not TEST:
+        all_gradients = []
         for e in range(args.n_epoch):
             epoch = e + 1
             print("epoch " + str(epoch))
@@ -1263,13 +1280,15 @@ if __name__ == "__main__":
                 for t in range(n_sample)
             ]
             # TRAIN
-            train_loss, train_loss2, _, _ = run_epoch(
+            train_loss, train_loss2, _, _, avg_gradients = run_epoch(
                 train=1,
                 rollout=False,
                 hp=hyperparams,
                 samples=samples_val,
                 samples_true=samples_true_val,
             )
+            # グラデーションをリストに追加
+            all_gradients.append(avg_gradients)
             print(
                 "Train:\t" + loss_str(train_loss) + "|" + loss_str(train_loss2)
             )
@@ -1277,7 +1296,7 @@ if __name__ == "__main__":
             if not hyperparams["pretrain"]:  # epoch % 5 == 3:
                 hyperparams["burn_in"] = args.burn_in
                 # hyperparams = {'model': args.model,'acc': acc,'burn_in': args.burn_in,'L_att':L_att}
-                val_loss, val_loss2, samples, samples_true = run_epoch(
+                val_loss, val_loss2, samples, samples_true, _ = run_epoch(
                     train=0,
                     rollout=False,
                     hp=hyperparams,
@@ -1290,7 +1309,7 @@ if __name__ == "__main__":
 
             else:
                 hyperparams["burn_in"] = args.horizon
-                val_loss, val_loss2, samples, samples_true = run_epoch(
+                val_loss, val_loss2, samples, samples_true, _ = run_epoch(
                     train=0,
                     rollout=False,
                     hp=hyperparams,
@@ -1390,6 +1409,12 @@ if __name__ == "__main__":
                 print("pretrained2 model was loaded")
 
         print("Best Val Loss: {:.4f}".format(best_val_loss))
+        num_episodes = len(all_gradients)
+        num_parameters = all_gradients[0].shape[0] #Flattened input dimensions of conv1
+        num_objectives = all_gradients[0].shape[1]
+        all_gradients = np.array(all_gradients).reshape(num_episodes, num_parameters, num_objectives)
+        with open(os.path.join(DATA_DIR, PATHS["gradients_filename"]), 'wb') as f:
+            pickle.dump(all_gradients, f)
 
     # Load params
     params = pickle.load(open(init_filename0 + "/params.p", "rb"))

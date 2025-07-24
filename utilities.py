@@ -3,7 +3,6 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-
 # import cPickle as pickle
 import _pickle as pickle
 import os
@@ -730,10 +729,10 @@ def split_baseon_env(target_array):
     - env_labels 1, 2, 3 go to train set (with 10% used for validation)
     - env_labels 4, 5, 6, 7 go to test set
     """
-    env_labels = target_array[0, :, 0, 6]
+    env_labels = target_array[0, :, 0, 8]
     
     # Get indices for train/val environments (1, 2, 3)
-    train_val_env_nums = [1, 2, 3]
+    train_val_env_nums = [1, 2, 4]
     train_val_indices = []
     for env_num in train_val_env_nums:
         indices = np.where(env_labels == env_num)[0]
@@ -750,7 +749,7 @@ def split_baseon_env(target_array):
     train_idx = train_val_indices[val_size:]
     
     # Get indices for test environments (4, 5, 6, 7)
-    test_env_nums = [4, 5, 6, 7]
+    test_env_nums = [3]
     test_idx_list = []
     for env_num in test_env_nums:
         indices = np.where(env_labels == env_num)[0]
@@ -777,8 +776,8 @@ def split_baseon_data(target_array):
     """
     split data 0.8 for train, 0.2 for test each envs
     """
-    env_labels = target_array[0, :, 0, 6]
-    ENV_nums = [1, 2, 3, 4, 5, 6, 7]
+    env_labels = target_array[0, :, 0, 8]
+    ENV_nums = [1, 2, 3, 4]
     train_idx_list = []
     val_idx_list = []
     test_idx_list = []
@@ -788,7 +787,7 @@ def split_baseon_data(target_array):
         np.random.shuffle(indices)
 
         n_total = len(indices)
-        n_train_val = int(math.ceil(n_total * 0.8))
+        n_train_val = int(math.ceil(n_total * 0.9))
         n_val = int(math.floor(n_train_val * 0.1))
         n_train = n_train_val - n_val
         print(f"ENV:{env_num}")

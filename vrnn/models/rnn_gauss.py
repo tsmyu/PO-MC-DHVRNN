@@ -217,18 +217,18 @@ class RNN_GAUSS(nn.Module):
         if self.params["cuda"]:
             h = cudafy_list(h)
 
-        bat_species = int(states[0][0][0][7])
+        bat_species = int(states[0][0][0][9])
         if bat_species >= 200:
             obs_point_dict = json.load(
                 open(
-                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
+                    "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
                     "r",
                 )
             )
         elif bat_species >= 100 and bat_species < 200:
             obs_point_dict = json.load(
                 open(
-                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
+                    "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
                     "r",
                 )
             )
@@ -734,18 +734,18 @@ class RNN_GAUSS(nn.Module):
 
         states_n = [states.clone() for _ in range(n_sample)]
 
-        bat_species = int(states[0][0][0][7])
+        bat_species = int(states[0][0][0][9])
         if bat_species >= 200:
             obs_point_dict = json.load(
                 open(
-                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
+                    "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
                     "r",
                 )
             )
         elif bat_species >= 100 and bat_species < 200:
             obs_point_dict = json.load(
                 open(
-                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
+                    "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
                     "r",
                 )
             )

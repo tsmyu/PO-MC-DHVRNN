@@ -255,8 +255,9 @@ def roll_out(
         next_pulse_flag = prediction_all[:, :, 2]
         dim = dim - 1
     elif pred_type == 1:
-        next_vel = prediction_all[:, :, :2]
-        next_vel_std = prediction_std[:, :, :2]
+        next_vel = prediction_all[:, :, :]  # 3次元（2次元速度＋Pxy）
+        next_vel_std = prediction_std[:, :, :]  # 3次元のstd
+        dim = 2  # 座標系は2次元（X, Y）
     elif pred_type == 2:
         next_pulse_flag = prediction_all[:, :, 0]
 
@@ -314,15 +315,17 @@ def roll_out(
             * fs
         )
     elif pred_type == 1:
-        role_long[:, dim : dim + 2] = next_vel[:, roleOrder, :]
-        role_long[:, 0:dim] = (
-            prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
+        # 2次元速度 + Pxy (3次元)
+        role_long[:, 2:4] = next_vel[:, roleOrder, :2]  # 2次元速度 (Vx, Vy)
+        role_long[:, 7] = next_vel[:, roleOrder, 2]  # Pxy
+        role_long[:, 0:2] = (
+            prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + 2)]
             + prev_feature[
-                :, roleOrder * n_feat + dim : (roleOrder * n_feat + dim * 2)
+                :, roleOrder * n_feat + 2 : (roleOrder * n_feat + 4)
             ]
             * fs
         )
-        vel_std_long[:, :2] = next_vel_std[:, roleOrder, :]
+        vel_std_long[:, :2] = next_vel_std[:, roleOrder, :2]  # 2次元速度のstd
     elif pred_type == 2:
         role_long[:, 5] = next_pulse_flag[:, roleOrder]
         dim = 2
@@ -339,16 +342,21 @@ def roll_out(
         #         * fs
         #     )
     for idx, prev_f in enumerate(prev_feature):
-
         next_point = role_long[idx][:dim]
         prev_point = prev_prev_faeture[idx][:dim]
         # role_long = [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state]
         # prev_f = [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state]
+        # pulse_directionsの取得（仮にprev_f[7]がPxyと仮定）
+        if len(prev_f) > 7:
+            pulse_directions = [prev_f[7], next_point[1]]  # 必要に応じて修正
+        else:
+            pulse_directions = [0, 0]
+
         if role_long[idx, 5] >= 0.5:
             pulse_flag = True
             (
                 theta,
-                env_state,
+                cross_distance,
             ) = preprocess_bat.calc_bat_states(
                 prev_f,
                 prev_point,
@@ -356,12 +364,13 @@ def roll_out(
                 dim,
                 pulse_flag,
                 obs_point_dict,
+                pulse_directions,
             )
         else:
             pulse_flag = False
             (
                 theta,
-                env_state,
+                cross_distance,
             ) = preprocess_bat.calc_bat_states(
                 prev_f,
                 prev_point,
@@ -369,16 +378,17 @@ def roll_out(
                 dim,
                 pulse_flag,
                 obs_point_dict,
+                pulse_directions,
             )
         if pred_type != 2:
-            role_long[idx, 6] = theta
-        if prev_feature[idx, 7] >= 200:
-            env_state[:62] = 2.0
-            env_state[188:] = 2.0
-        elif prev_feature[idx, 7] >= 100 and prev_feature[idx, 7] < 200:
+            role_long[idx, 4] = theta
+        if prev_feature[idx, 9] >= 200:
+            cross_distance[:62] = 2.0
+            cross_distance[188:] = 2.0
+        elif prev_feature[idx, 9] >= 100 and prev_feature[idx, 9] < 200:
             pass
-        role_long[idx, 8:] = torch.tensor(env_state)
-    role_long[:, 6:8] = prev_feature[:, 6:8]
+        role_long[idx, 10:] = torch.tensor(cross_distance)
+    role_long[:, 8:10] = prev_feature[:, 8:10]
     # elif acc == 4:
     #     role_long[:, dim : dim * 2] = (
     #         prev_feature[

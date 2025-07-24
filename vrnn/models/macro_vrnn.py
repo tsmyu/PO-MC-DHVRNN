@@ -718,18 +718,18 @@ class MACRO_VRNN(nn.Module):
             if self.macro:
                 h_macro = cudafy_list(h_macro)
             h_micro = cudafy_list(h_micro)
-        bat_species = int(states[0][0][0][7])
+        bat_species = int(states[0][0][0][9])
         if bat_species >= 200:
             obs_point_dict = json.load(
                 open(
-                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
+                    "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
                     "r",
                 )
             )
         elif bat_species >= 100 and bat_species < 200:
             obs_point_dict = json.load(
                 open(
-                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
+                    "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
                     "r",
                 )
             )
@@ -798,10 +798,25 @@ class MACRO_VRNN(nn.Module):
                                 .clone()
                                 .reshape(-1, 1)
                             )
+                            next_pxy = (
+                                states[t + 1][i][
+                                    :,
+                                    n_feat * i + 7,
+                                ]
+                                .clone()
+                                .reshape(-1, 1)
+                            )
                             x_t0_with_pulse = torch.cat(
                                 (
                                     x_t0,
                                     next_pulse,
+                                ),
+                                dim=1,
+                            )
+                            x_t0_with_pxy = torch.cat(
+                                (
+                                    x_t0,
+                                    next_pxy,
                                 ),
                                 dim=1,
                             )
@@ -819,6 +834,21 @@ class MACRO_VRNN(nn.Module):
                                 :,
                                 n_feat * i + 3 : n_feat * i + 6,
                             ].clone()
+                            next_pxy = (
+                                states[t + 1][i][
+                                    :,
+                                    n_feat * i + 8,
+                                ]
+                                .clone()
+                                .reshape(-1, 1)
+                            )
+                            x_t0_with_pxy = torch.cat(
+                                (
+                                    x_t0,
+                                    next_pxy,
+                                ),
+                                dim=1,
+                            )
                     elif self.in_sma:
                         x_t0 = states[t + 1][i][
                             :,
@@ -959,8 +989,9 @@ class MACRO_VRNN(nn.Module):
                                 # velocity + pulse timing
                                 state_in0 = current_vel_with_pulse
                             elif self.pred_type == 1:
-                                # velocity
-                                state_in0 = current_vel
+                                # velocity + Pxy (pulse radiation direction)
+                                current_pxy = y_t[:, n_feat * i + 7].clone().reshape(-1, 1)
+                                state_in0 = torch.cat((current_vel, current_pxy), dim=1)
                             elif self.pred_type == 2:
                                 # pulse timing
                                 state_in0 = flag_pulse
@@ -1011,7 +1042,7 @@ class MACRO_VRNN(nn.Module):
 
                     elif self.attention == -1:  # w/o embedding and attention
                         state_in = y_t
-                        state_in = th_delete(state_in, [6, 7])
+                        state_in = th_delete(state_in, [8, 9])
 
                     # elif not self.indep:
                     #    state_in = torch.zeros(batchSize,0).to(device)
@@ -1028,7 +1059,7 @@ class MACRO_VRNN(nn.Module):
                     if self.pred_type == 0:
                         enc_x_t0 = x_t0_with_pulse
                     elif self.pred_type == 1:
-                        enc_x_t0 = x_t0
+                        enc_x_t0 = x_t0_with_pxy
                     elif self.pred_type == 2:
                         enc_x_t0 = next_pulse
                     enc_in = torch.cat(
@@ -1147,11 +1178,7 @@ class MACRO_VRNN(nn.Module):
                                 next_pulse,
                             )
                         elif self.pred_type == 1:
-                            out["L_rec"] += nll_gauss(
-                                dec_mean_t[:, :2],
-                                dec_std_t[:, :2],
-                                torch.cat([x_t], 1),
-                            )
+                            prediction_all[:, i, :x_dim] = dec_mean_t[:, :x_dim]
                         elif self.pred_type == 2:
                             out["L_pulse_flag"] += pulse_loss(
                                 dec_pulse_t,
@@ -1630,18 +1657,18 @@ class MACRO_VRNN(nn.Module):
             states.shape[0], states.shape[1], states.shape[2], 2
         )
         states_std_n = [states_std.clone() for _ in range(n_sample)]
-        bat_species = int(states[0][0][0][7])
+        bat_species = int(states[0][0][0][9])
         if bat_species >= 200:
             obs_point_dict = json.load(
                 open(
-                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_kiku.json",
+                    "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
                     "r",
                 )
             )
         elif bat_species >= 100 and bat_species < 200:
             obs_point_dict = json.load(
                 open(
-                    "./calc_states/preprocess_bats/obstacle_information/2023/Envs_yubi.json",
+                    "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
                     "r",
                 )
             )
@@ -1704,10 +1731,22 @@ class MACRO_VRNN(nn.Module):
                                 .clone()
                                 .reshape(-1, 1)
                             )
+                            next_pxy = (
+                                states[t + 1][i][:, n_feat * i + 7]
+                                .clone()
+                                .reshape(-1, 1)
+                            )
                             x_t0_with_pulse = torch.cat(
                                 (
                                     x_t0,
                                     next_pulse,
+                                ),
+                                dim=1,
+                            )
+                            x_t0_with_pxy = torch.cat(
+                                (
+                                    x_t0,
+                                    next_pxy,
                                 ),
                                 dim=1,
                             )
@@ -1719,6 +1758,18 @@ class MACRO_VRNN(nn.Module):
                             next_pulse = states[t + 1][i][
                                 :, n_feat * i + 8
                             ].clone()
+                            next_pxy = (
+                                states[t + 1][i][:, n_feat * i + 8]
+                                .clone()
+                                .reshape(-1, 1)
+                            )
+                            x_t0_with_pxy = torch.cat(
+                                (
+                                    x_t0,
+                                    next_pxy,
+                                ),
+                                dim=1,
+                            )
                     elif n_feat < 10:
                         x_t0 = states[t + 1][i][
                             :,
@@ -1863,8 +1914,9 @@ class MACRO_VRNN(nn.Module):
                                 # velocity + pulse timing
                                 state_in0 = current_vel_with_pulse
                             elif self.pred_type == 1:
-                                # velocity
-                                state_in0 = current_vel
+                                # velocity + Pxy (pulse radiation direction)
+                                current_pxy = y_t[:, n_feat * i + 7].clone().reshape(-1, 1)
+                                state_in0 = torch.cat((current_vel, current_pxy), dim=1)
                             elif self.pred_type == 2:
                                 # pulse timing
                                 state_in0 = flag_pulse
@@ -1994,7 +2046,7 @@ class MACRO_VRNN(nn.Module):
                         self.attention == -1
                     ):  # w/o embedding and attention # or not self.indep
                         state_in = y_t  # torch.zeros(batchSize,0).to(device) #
-                        state_in = th_delete(state_in, [6, 7])
+                        state_in = th_delete(state_in, [8, 9])
 
                     prior_in = torch.cat(
                         [
@@ -2019,7 +2071,7 @@ class MACRO_VRNN(nn.Module):
                         if self.pred_type == 0:
                             enc_x_t0 = x_t0_with_pulse
                         elif self.pred_type == 1:
-                            enc_x_t0 = x_t0
+                            enc_x_t0 = x_t0_with_pxy
                         elif self.pred_type == 2:
                             enc_x_t0 = next_pulse
                         enc_in = torch.cat(

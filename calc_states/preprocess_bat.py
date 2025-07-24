@@ -42,7 +42,7 @@ def calc_cross_points(
     return cross_list
 
 
-def calc_rotation_point(prev_f, next_point, dim):
+def calc_rotation_point(prev_f, next_point, dim, pulse_directions):
     if dim == 2:
         X = [
             prev_f[0],
@@ -52,7 +52,7 @@ def calc_rotation_point(prev_f, next_point, dim):
             prev_f[1],
             next_point[1],
         ]
-        rot_all_x, rot_all_y = rotation(X, Y)
+        rot_all_x, rot_all_y = rotation(X, Y, pulse_directions)
     elif dim == 3:
         X = [
             prev_f[0],
@@ -66,7 +66,7 @@ def calc_rotation_point(prev_f, next_point, dim):
             prev_f[2],
             next_point[2],
         ]
-        rot_all_x, rot_all_y = rotation(X, Y, Z)
+        rot_all_x, rot_all_y = rotation(X, Y, Z, pulse_directions)
 
     return rot_all_x, rot_all_y
 
@@ -122,6 +122,7 @@ def read_data(target_data):
         "X": target_data["X"],
         "Y": target_data["Y"],
         "Z": target_data["Z"],
+        "Pxy": target_data["Pxy"],  # Pxy列を追加
     }
 
     return target_data
@@ -134,15 +135,16 @@ def calc_states(
     dim,
     pulse_flag,
     obs_point_dict,
+    pulse_directions,
 ):
-    # prev_f = [X, Y, Vx, Vy, θ, pulse_flag, Env, Bat, state(251dim)]
-    env_name = int(prev_f[6])
+
+    env_name = int(prev_f[8])
     if dim == 3:
-        print("not concider in 3-dim yet")
-        exit()
+        # 3次元として処理する（実装済み）
+        pass
     theta = calc_angles(prev_f, prev_point, next_point, dim)
     # calc rotation point
-    pos_x, pos_z = calc_rotation_point(prev_f, next_point, dim)
+    pos_x, pos_z = calc_rotation_point(prev_f, next_point, dim, pulse_directions)
     if pulse_flag:
         # calc cross point
         cross_distance = calc_cross_points(
@@ -186,6 +188,7 @@ def calc_bat_states(
     dim,
     pulse_flag,
     obs_point_dict,
+    pulse_directions,
 ):
     """
     prev_f = [X, Y, Vx, Vy, Vx_std, Vy_std, θ, pulse_flag, Env, Bat, state(251dim)]
@@ -201,6 +204,7 @@ def calc_bat_states(
         dim,
         pulse_flag,
         obs_point_dict,
+        pulse_directions,
     )
 
     return theta, cross_distance

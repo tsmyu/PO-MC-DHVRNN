@@ -66,6 +66,7 @@ def read_data(target_data):
         "X": target_data["X"],
         "Y": target_data["Y"],
         "Z": target_data["Z"],
+        "Pxy": target_data["Pxy"],  # Pxy列を追加
     }
 
     return target_data
@@ -83,13 +84,13 @@ def calc_states(indf, env_name):
     theta, alpha = calc_angles(target_data)
     # calc rotation point
     print("calc rotation point.......")
-    pos_x, pos_z = calc_rotation_point(target_data)
+    pulse_directions = target_data["Pxy"]
+    pos_x, pos_z = rotation(indf["X1"], indf["Z1"], pulse_directions)
     # calc cross point
     print("calc cross points.........")
     cross_distance = calc_cross_points(target_data, pos_x, pos_z, env_name)
 
-    return Vx, Vy, Vz, theta, alpha, cross_distance, target_data["dt"]
-
+    return Vx, Vy, Vz, theta, alpha, cross_distance, target_data["dt"], target_data
 
 def calc_actions(indf):
     target_data = read_data(indf)

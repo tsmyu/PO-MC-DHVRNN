@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import json
 
 from vrnn.models.utils import parse_model_params, get_params_str, cudafy_list, index_by_agent, get_macro_ohe
 from vrnn.models.utils import sample_gauss, nll_gauss, kld_gauss, sample_multinomial
@@ -94,6 +95,29 @@ class VRNN_bats(nn.Module):
         len_time = self.params['horizon']
         fs = self.params['fs']
         batchSize = states.size(2)
+        pred_type = self.params['pred_type']
+
+        # obs_point_dict for bat dataset
+        if self.dataset == "bat":
+            bat_species = int(states[0][0][0][9])
+            if bat_species >= 200:
+                obs_point_dict = json.load(
+                    open(
+                        "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
+                        "r",
+                    )
+                )
+            elif bat_species >= 100 and bat_species < 200:
+                obs_point_dict = json.load(
+                    open(
+                        "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
+                        "r",
+                    )
+                )
+            else:
+                raise ValueError("bat number must be 100 - 299")
+        else:
+            obs_point_dict = {}
 
         h_micro = torch.zeros(self.n_layers, batchSize, self.gru_micro)
         m_t = torch.zeros(batchSize,0).to(device)
@@ -873,6 +897,7 @@ class MACRO_VRNN(nn.Module):
         
         return out, out2
 
+
     def sample(self, states, macro, rollout, burn_in=0, fix_m=[], L_att = False, CF_pred=False, n_sample=1, TEST=False):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         out = {}
@@ -908,6 +933,29 @@ class MACRO_VRNN(nn.Module):
         ball_dim = self.params['ball_dim']
         fs = self.params['fs'] # added
         x_dim = self.params['x_dim']
+        pred_type = self.params['pred_type']
+
+        # obs_point_dict for bat dataset
+        if self.dataset == "bat":
+            bat_species = int(states[0][0][0][9])
+            if bat_species >= 200:
+                obs_point_dict = json.load(
+                    open(
+                        "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
+                        "r",
+                    )
+                )
+            elif bat_species >= 100 and bat_species < 200:
+                obs_point_dict = json.load(
+                    open(
+                        "./calc_states/preprocess_bats/obstacle_information/2025/Envs.json",
+                        "r",
+                    )
+                )
+            else:
+                raise ValueError("bat number must be 100 - 299")
+        else:
+            obs_point_dict = {}
         
         macro_single = get_macro_ohe(macro, n_agents, self.params['m_dim'])
         if self.macro:
@@ -979,6 +1027,7 @@ class MACRO_VRNN(nn.Module):
                         macro_intents[t,:,:,n] = torch.max(m_t, 2)[1].transpose(0,1)
 
                 prediction_all = torch.zeros(batchSize, n_agents, x_dim)
+                prediction_std = torch.zeros(batchSize, n_agents, x_dim)
                 for i in range(n_agents):
                     y_t = states_n[n][t][i].clone()
 
@@ -1252,21 +1301,19 @@ class MACRO_VRNN(nn.Module):
                         # prediction
                         prediction_all[:,i,:2] = dec_mean_t[:,:x_dim-1]
                         prediction_all[:, i, 2] = dec_pulse_t.reshape(1, -1)[0]
+                        prediction_std[:,i,:x_dim] = dec_std_t[:,:x_dim]
 
                         # error (not used when backward)
                         out['e_pos'][n] += batch_error(next_pos, x_t0[:,:2], Sum)
                         out2['e_vel'][n] += batch_error(v_t1, v0_t1, Sum)
+                        out2['e_acc'][:,i] = dec_std_t[:,4:6]
+                        out2['e_jrk'][:,i] = dec_std_t[:,6:8]
+                        out2['e_pmax'][n,:,t] += batch_error(next_pos, x_t0[:,:2], Sum=False)
+                        out2['e_vmax'][n,:,t] += batch_error(v_t1, v0_t1, Sum=False)
+                        out2['e_amax'][n,:,t] += batch_error(a_t1, a0_t1, Sum=False)
 
-                        if burn_in==len_time:
-                            out2['e_pmax'][n,:,t] += batch_error(next_pos, x_t0[:,:2], Sum=False)
-                            # TBD
-                        else:
-                            out2['e_pmax'][n,:,t-burn_in] += batch_error(next_pos, x_t0[:,:2], Sum=False)
-                            out2['e_vmax'][n,:,t-burn_in] += batch_error(v_t1, v0_t1, Sum=False)
-                            out2['e_amax'][n,:,t-burn_in] += batch_error(a_t1, a0_t1, Sum=False)
-
-                        out2['e_acc'][n] += batch_error(a_t1, a0_t1, Sum)
-                        out2['e_jrk'][n] += batch_error(a_t1, a_t2, Sum)
+                        out2['e_acc'][:,i] += batch_error(a_t1, a0_t1, Sum)
+                        out2['e_jrk'][:,i] += batch_error(a_t1, a_t2, Sum)
                         # if acc == 2 and body:
                         out2['a_acc'][n] += batch_error(a_t1, [], Sum, diff=False)
 

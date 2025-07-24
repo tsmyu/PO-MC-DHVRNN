@@ -41,10 +41,6 @@ def calc_obs_area(obs_point_dict):
         "Env2": {"x": [], "y": []},
         "Env3": {"x": [], "y": []},
         "Env4": {"x": [], "y": []},
-        "Env5": {"x": [], "y": []},
-        "Env6": {"x": [], "y": []},
-        "Env7": {"x": [], "y": []},
-        "Test": {"x": [], "y": []},
     }
     for env in obs_point_dict.keys():
         if env == "wall":
@@ -70,14 +66,6 @@ def get_env_name(env_num):
         env_name = "Env3"
     elif env_num == 4:
         env_name = "Env4"
-    elif env_num == 5:
-        env_name = "Env5"
-    elif env_num == 6:
-        env_name = "Env6"
-    elif env_num == 7:
-        env_name = "Env7"
-    elif env_num == 8:
-        env_name = "Test"
     else:
         raise KeyError(f"env_num={env_num}")
 
@@ -147,25 +135,26 @@ def vertical_angle(x, y, z):
     return theta
 
 
-def rotation(x: list, y: list):
+def rotation(x: list, y: list, pulse_directions: float):
     """
     座標を±40°回転
     """
-    rads = [np.deg2rad(round(j * 0.01, 1)) for j in range(-4000, 4032, 32)]
+    rads = [np.deg2rad(round(j*0.01, 1)) for j in range(-4000, 4032, 32)]
     rot_x = []
     rot_y = []
     length = 5
-    for i in range(len(x) - 1):
-        theta = np.arctan2((y[i + 1] - y[i]), (x[i + 1] - x[i]))
-        rads += theta
-        cos_list = np.cos(rads)
-        sin_list = np.sin(rads)
-        r = np.sqrt((x[i + 1] - x[i]) ** 2 + (y[i + 1] - y[i]) ** 2)
-        # rot_x.append(((x[i+1] - x[i]) * cos_list) - ((y[i+1] - y[i]) * sin_list)+ x[i])
-        # rot_y.append(((x[i+1] - x[i]) * sin_list) + ((y[i+1] - y[i]) * cos_list)+ y[i])
+    for i in range(len(x)-1):
+        base_angle_deg = pulse_directions[i]
+        # 0°から360°の範囲の角度を-180°から+180°の範囲に変換
+        if isinstance(base_angle_deg, torch.Tensor):
+            base_angle_deg = base_angle_deg.detach().cpu().numpy()
+        base_angle_deg = base_angle_deg - 360 if base_angle_deg > 180 else base_angle_deg
+        base_angle_rad = np.deg2rad(base_angle_deg) # 基準角度をラジアンに変換
+        rads_rotated = [rad + base_angle_rad for rad in rads]
+        cos_list = np.cos(rads_rotated)
+        sin_list = np.sin(rads_rotated)
         rot_x.append(length * cos_list + x[i])
         rot_y.append(length * sin_list + y[i])
-
     return rot_x, rot_y
 
 
@@ -237,3 +226,61 @@ def cross_point(
         cross_alldistance.append(cross_subdistance)
 
     return cross_alldistance
+
+def get_min_distance(input_array, tolerance=0.01):
+    """
+    251次元のリスト(cross_subdistance)を処理し、連続した障害物情報の値の中で最小値(コウモリの位置から一番短い距離)だけ取り出し、
+    その他の値を 2 に置き換える関数
+    引数:
+        input_array (list): 入力の251次元リスト
+        tolerance (float): ほとんど同じ値とみなす許容範囲。 0.01(1つの障害物にある2つの点の距離差以上)に設定
+    戻り値:
+        cross_subdistance2(list): 出力の251次元リスト
+    """
+    # 結果を格納するリスト（251次元すべて 2 で初期化）
+    cross_subdistance2 = [2] * 251
+
+    # 一時的に連続した値を保持するリスト
+    temp = []
+    # 現在の連続したの開始インデックスを記録
+    start_index = 0
+
+    # 入力配列を順次処理
+    for i, value in enumerate(input_array):
+        if value != 2:  # 値が 2 ではない場合
+            if temp and abs(value - temp[-1]) > tolerance:
+                # 許容範囲を超えた場合、現在の連続した値を処理してリセット
+                min_value = min(temp)  # 連続した値の最小値だけ取得
+                min_index = temp.index(min_value)  # 最小値のインデックスを取得
+                for j, v in enumerate(temp):
+                    if j == min_index:
+                        cross_subdistance2[start_index + j] = min_value  # 最小値を同じインデックスに配置
+                    else:
+                        cross_subdistance2[start_index + j] = 2  # 他は2に置き換え
+                temp = []  # 一時的に溜め込んだ連続した値をリセット
+                start_index = i  # 新しい開始インデックスを更新
+            temp.append(value)  # 値を一時的なリストに追加
+        else: 
+            if temp:  
+                min_value = min(temp)  
+                min_index = temp.index(min_value)  
+                for j, v in enumerate(temp):
+                    if j == min_index:
+                        cross_subdistance2[start_index + j] = min_value  
+                    else:
+                        cross_subdistance2[start_index + j] = 2  
+                temp = [] 
+            start_index = i + 1  
+            cross_subdistance2[i] = 2  # 2 をそのまま結果リストに追加
+
+    # 最後の処理（ループ終了後）
+    if temp:
+        min_value = min(temp)  # 最小値を取得
+        min_index = temp.index(min_value)  # 最小値のインデックスを取得
+        for j, v in enumerate(temp):
+            if j == min_index:
+                cross_subdistance2[start_index + j] = min_value  # 最小値を同じインデックスに配置
+            else:
+                cross_subdistance2[start_index + j] = 2  # 他は2に置き換え
+
+    return cross_subdistance2

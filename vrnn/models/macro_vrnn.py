@@ -793,7 +793,7 @@ class MACRO_VRNN(nn.Module):
                             next_pulse = (
                                 states[t + 1][i][
                                     :,
-                                    n_feat * i + 5,
+                                    n_feat * i + 7,
                                 ]
                                 .clone()
                                 .reshape(-1, 1)
@@ -1151,8 +1151,8 @@ class MACRO_VRNN(nn.Module):
                     )
 
                     # objective function
-                    pulse_loss = nn.BCELoss()
-                    # pulse_loss = nn.MSELoss()
+                    #pulse_loss = nn.BCELoss()
+                    pulse_loss = nn.MSELoss()
                     out["L_kl"] += kld_gauss(
                         enc_mean_t,
                         enc_std_t,
@@ -1727,7 +1727,7 @@ class MACRO_VRNN(nn.Module):
                                 n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
                             next_pulse = (
-                                states[t + 1][i][:, n_feat * i + 5]
+                                states[t + 1][i][:, n_feat * i + 7]
                                 .clone()
                                 .reshape(-1, 1)
                             )
@@ -2141,8 +2141,8 @@ class MACRO_VRNN(nn.Module):
                         dec_mean_t = x_t0
                         dec_pulse_t = self.dec_pulse[i](dec_t)
                     # objective function
-                    pulse_loss = nn.BCELoss()
-                    # pulse_loss = nn.MSELoss()
+                    #pulse_loss = nn.BCELoss()
+                    pulse_loss = nn.MSELoss()
                     # for evaluation only
                     enc_t = self.enc[i](enc_in)
                     if self.batchnorm:

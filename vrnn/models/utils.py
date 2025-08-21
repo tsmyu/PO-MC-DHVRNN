@@ -306,7 +306,7 @@ def roll_out(
     # fix role vector
     if pred_type == 0:
         role_long[:, dim : dim * 2] = next_vel[:, roleOrder, :]
-        role_long[:, 5] = next_pulse_flag[:, roleOrder]
+        role_long[:, 7] = next_pulse_flag[:, roleOrder]
         role_long[:, 0:dim] = (
             prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
             + prev_feature[

@@ -562,7 +562,7 @@ class MACRO_VRNN(nn.Module):
                                 :, n_feat * i + 2 : n_feat * i + 4
                             ].clone()
                             next_pulse = (
-                                states[t + 1][i][:, n_feat * i + 5].clone().reshape(-1, 1)
+                                states[t + 1][i][:, n_feat * i + 7].clone().reshape(-1, 1)
                             )
                             x_t0_with_pulse = torch.cat((x_t0, next_pulse), dim=1)
 
@@ -1038,7 +1038,7 @@ class MACRO_VRNN(nn.Module):
                             x_t0 = states[t + 1][i][
                                 :, n_feat * i + 2 : n_feat * i + 4
                             ].clone()
-                            next_pulse = states[t + 1][i][:, n_feat * i + 5].clone()
+                            next_pulse = states[t + 1][i][:, n_feat * i + 7].clone()
                             x_t0_with_pulse = torch.cat(
                                 (x_t0, next_pulse.reshape(-1, 1)), dim=1
                             )

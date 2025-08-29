@@ -303,7 +303,7 @@ class RNN_GAUSS(nn.Module):
                         current_pos = y_t[:, n_feat * i : n_feat * i + 2]
                         current_vel = y_t[:, n_feat * i + 2 : n_feat * i + 4]
                         flag_pulse = (
-                            y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                            y_t[:, n_feat * i + 7].clone().reshape(-1, 1)
                         )
                         current_vel_with_pulse = torch.cat(
                             (
@@ -447,7 +447,8 @@ class RNN_GAUSS(nn.Module):
                 _, h[i] = self.rnn[i](enc_in.unsqueeze(0), h[i])
 
                 # objective function
-                pulse_loss = nn.BCELoss()
+                #pulse_loss = nn.BCELoss()
+                pulse_loss = nn.MSELoss()
                 if acc == -1:
                     out["L_rec"] += nll_gauss(
                         dec_mean_t[:, :2], dec_std_t[:, :2], torch.cat([x_t], 1)
@@ -824,7 +825,7 @@ class RNN_GAUSS(nn.Module):
                             flag_pulse = (
                                 y_t[
                                     :,
-                                    n_feat * i + 5,
+                                    n_feat * i + 7,
                                 ]
                                 .clone()
                                 .reshape(-1, 1)

@@ -892,7 +892,7 @@ class MACRO_VRNN(nn.Module):
                                 n_feat * i + 2 : n_feat * i + 4,
                             ]
                             flag_pulse = (
-                                y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                                y_t[:, n_feat * i + 7].clone().reshape(-1, 1)
                             )
                             current_vel_with_pulse = torch.cat(
                                 (
@@ -1816,7 +1816,7 @@ class MACRO_VRNN(nn.Module):
                             flag_pulse = (
                                 y_t[
                                     :,
-                                    n_feat * i + 5,
+                                    n_feat * i + 7,
                                 ]
                                 .clone()
                                 .reshape(-1, 1)

@@ -403,7 +403,7 @@ class MACRO_VRNN(nn.Module):
             )
             self.dec_pulse = nn.ModuleList(
                 [
-                    nn.Sequential(nn.Linear(h_dim, 1), nn.Sigmoid())
+                    nn.Sequential(nn.Linear(h_dim, 1))
                     for i in range(n_agents)
                 ]
             )

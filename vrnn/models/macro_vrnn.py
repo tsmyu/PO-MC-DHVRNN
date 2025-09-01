@@ -793,7 +793,7 @@ class MACRO_VRNN(nn.Module):
                             next_pulse = (
                                 states[t + 1][i][
                                     :,
-                                    n_feat * i + 7,
+                                    n_feat * i + 5,
                                 ]
                                 .clone()
                                 .reshape(-1, 1)
@@ -892,7 +892,7 @@ class MACRO_VRNN(nn.Module):
                                 n_feat * i + 2 : n_feat * i + 4,
                             ]
                             flag_pulse = (
-                                y_t[:, n_feat * i + 7].clone().reshape(-1, 1)
+                                y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
                             )
                             current_vel_with_pulse = torch.cat(
                                 (
@@ -1151,8 +1151,8 @@ class MACRO_VRNN(nn.Module):
                     )
 
                     # objective function
-                    #pulse_loss = nn.BCELoss()
-                    pulse_loss = nn.MSELoss()
+                    pulse_loss = nn.BCELoss()
+                    #pulse_loss = nn.MSELoss()
                     out["L_kl"] += kld_gauss(
                         enc_mean_t,
                         enc_std_t,
@@ -1477,6 +1477,7 @@ class MACRO_VRNN(nn.Module):
             if not TEST
             else torch.zeros(n_sample, batchSize).to(device)
         )
+
         out2["e_acc"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
@@ -1727,7 +1728,7 @@ class MACRO_VRNN(nn.Module):
                                 n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
                             next_pulse = (
-                                states[t + 1][i][:, n_feat * i + 7]
+                                states[t + 1][i][:, n_feat * i + 5]
                                 .clone()
                                 .reshape(-1, 1)
                             )
@@ -1816,7 +1817,7 @@ class MACRO_VRNN(nn.Module):
                             flag_pulse = (
                                 y_t[
                                     :,
-                                    n_feat * i + 7,
+                                    n_feat * i + 5,
                                 ]
                                 .clone()
                                 .reshape(-1, 1)
@@ -2140,9 +2141,10 @@ class MACRO_VRNN(nn.Module):
                     elif self.pred_type == 2:
                         dec_mean_t = x_t0
                         dec_pulse_t = self.dec_pulse[i](dec_t)
+                        dec_std_t = torch.zeros(dec_mean_t.shape).to(device)
                     # objective function
-                    #pulse_loss = nn.BCELoss()
-                    pulse_loss = nn.MSELoss()
+                    pulse_loss = nn.BCELoss()
+                    #pulse_loss = nn.MSELoss()
                     # for evaluation only
                     enc_t = self.enc[i](enc_in)
                     if self.batchnorm:
@@ -2519,6 +2521,7 @@ class MACRO_VRNN(nn.Module):
         for n in range(n_sample):
             out2["L_kl"][n] /= (len_time) * n_agents
             out["L_rec"][n] /= (len_time) * n_agents
+
             out2["L_jrk"][n] /= (len_time) * n_agents
             out2["L_vel"][n] /= (len_time) * n_agents
             out2["L_acc"][n] /= (len_time) * n_agents

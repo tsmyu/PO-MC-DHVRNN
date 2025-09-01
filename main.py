@@ -701,7 +701,7 @@ if __name__ == "__main__":
 
     # test pickle load
     with open(
-        os.path.dirname(game_files) + "/dataset_pd_yubi_add.pkl",
+        os.path.dirname(game_files) + "/dataset_pd_yubi.pkl",
         "rb",
     ) as f:
         X_data_all = pickle.load(f)

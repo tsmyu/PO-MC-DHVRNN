@@ -444,6 +444,7 @@ class RNN_GAUSS(nn.Module):
                     # dec_mean_t = states
                     dec_pulse_t = self.dec_pulse[i](dec_t)
 
+
                 _, h[i] = self.rnn[i](enc_in.unsqueeze(0), h[i])
 
                 # objective function

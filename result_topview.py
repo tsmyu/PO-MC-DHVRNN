@@ -8,7 +8,7 @@ import statistics
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-path = r"C:\Users\yota-\OneDrive - 同志社大学\PO-MC-DHVRNN\result\20250827"
+path = r"C:\Users\yota-\OneDrive - 同志社大学\PO-MC-DHVRNN\result\20250901"
 with open(os.path.join(path, 'params.p'), 'rb') as f: ###########
     param = np.load(f, allow_pickle=True)
     # print(param)
@@ -66,7 +66,7 @@ for episode in range(len(data[0][0][0][0])):
                                 (data[1][0][step][0][episode][1] - data[0][0][step][0][episode][1]) ** 2))
         loss_vel.append(np.sqrt((data[1][0][step][0][episode][2] - data[0][0][step][0][episode][2])** 2 + 
                                 (data[1][0][step][0][episode][3] - data[0][0][step][0][episode][3]) ** 2))
-    print(data[1][0][step][0][episode][7])
+    #print(data[1][0][step][0][episode][7])
     print(data[0][0][step][0][episode][9])
     #print("====================")
 
@@ -138,21 +138,24 @@ for episode in range(len(data[0][0][0][0])):
     ax.plot(test_x, test_y, label='predicted flight path',
             color='#d62728', zorder=2, linewidth=3)
     
-    for i in range(len(train_x)):
-        x = train_x[i]
-        y = train_y[i]
-        angle = data[1][0][predict_time + i][0][episode][7]  # step = predict_time + i
-        dx = np.cos(angle) * 0.2  # 矢印の長さ0.2（調整可）
-        dy = np.sin(angle) * 0.2
-        ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='k', ec='k')
+    for i in range(len(train_x_pre)):
+        x = train_x_pre[i]
+        y = train_y_pre[i]
+        if train_pulse[i] >= 0.5:
+            angle = data[1][0][predict_time + i][0][episode][7]  # 実測Pxy
+            dx = np.cos(angle) * 0.2
+            dy = np.sin(angle) * 0.2
+            ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='b', ec='b')
 
     for i in range(len(test_x)):
         x = test_x[i]
         y = test_y[i]
-        angle = data[0][0][predict_time + i][0][episode][9]  # step = predict_time + i
-        dx = np.cos(angle) * 0.2  # 矢印の長さ0.2（調整可）
-        dy = np.sin(angle) * 0.2
-        ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='k', ec='k')
+        # パルス放射タイミングのみ描画
+        if test_pulse[i] >= 0.5:
+            angle = data[1][0][predict_time + i][0][episode][7]  # 実測Pxyを使用
+            dx = np.cos(angle) * 0.2
+            dy = np.sin(angle) * 0.2
+            ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='r', ec='r')
 
     #for i in range(len(train_pulse)):
     #    if train_pulse[i] >= 0.35:

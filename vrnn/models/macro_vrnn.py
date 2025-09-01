@@ -1477,7 +1477,6 @@ class MACRO_VRNN(nn.Module):
             if not TEST
             else torch.zeros(n_sample, batchSize).to(device)
         )
-
         out2["e_acc"] = (
             torch.zeros(n_sample).to(device)
             if not TEST
@@ -2521,7 +2520,6 @@ class MACRO_VRNN(nn.Module):
         for n in range(n_sample):
             out2["L_kl"][n] /= (len_time) * n_agents
             out["L_rec"][n] /= (len_time) * n_agents
-
             out2["L_jrk"][n] /= (len_time) * n_agents
             out2["L_vel"][n] /= (len_time) * n_agents
             out2["L_acc"][n] /= (len_time) * n_agents

@@ -8,7 +8,7 @@ import statistics
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-path = r"C:\Users\yota-\OneDrive - 同志社大学\PO-MC-DHVRNN\result\20250901"
+path = r"C:\Users\yota-\OneDrive - 同志社大学\PO-MC-DHVRNN\result\predtype2"
 with open(os.path.join(path, 'params.p'), 'rb') as f: ###########
     param = np.load(f, allow_pickle=True)
     # print(param)
@@ -66,8 +66,8 @@ for episode in range(len(data[0][0][0][0])):
                                 (data[1][0][step][0][episode][1] - data[0][0][step][0][episode][1]) ** 2))
         loss_vel.append(np.sqrt((data[1][0][step][0][episode][2] - data[0][0][step][0][episode][2])** 2 + 
                                 (data[1][0][step][0][episode][3] - data[0][0][step][0][episode][3]) ** 2))
-    #print(data[1][0][step][0][episode][7])
-    print(data[0][0][step][0][episode][9])
+    print(data[1][0][step][0][episode][5])
+    print(data[0][0][step][0][episode][7])
     #print("====================")
 
     # 0.5以上の値を1に変換
@@ -138,37 +138,37 @@ for episode in range(len(data[0][0][0][0])):
     ax.plot(test_x, test_y, label='predicted flight path',
             color='#d62728', zorder=2, linewidth=3)
     
-    for i in range(len(train_x_pre)):
-        x = train_x_pre[i]
-        y = train_y_pre[i]
+    #for i in range(len(train_x_pre)):
+    #    x = train_x_pre[i]
+    #    y = train_y_pre[i]
+    #    if train_pulse[i] >= 0.5:
+    #        angle = data[1][0][predict_time + i][0][episode][7]  # 実測Pxy
+    #        dx = np.cos(angle) * 0.2
+    #        dy = np.sin(angle) * 0.2
+    #       ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='b', ec='b')
+
+    #for i in range(len(test_x)):
+    #    x = test_x[i]
+    #    y = test_y[i]
+    #    # パルス放射タイミングのみ描画
+    #    if test_pulse[i] >= 0.5:
+    #        angle = data[1][0][predict_time + i][0][episode][7]  # 実測Pxyを使用
+    #        dx = np.cos(angle) * 0.2
+    #        dy = np.sin(angle) * 0.2
+    #        ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='r', ec='r')
+
+    for i in range(len(train_pulse)):
         if train_pulse[i] >= 0.5:
-            angle = data[1][0][predict_time + i][0][episode][7]  # 実測Pxy
-            dx = np.cos(angle) * 0.2
-            dy = np.sin(angle) * 0.2
-            ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='b', ec='b')
-
-    for i in range(len(test_x)):
-        x = test_x[i]
-        y = test_y[i]
-        # パルス放射タイミングのみ描画
+            ax.scatter(train_x_pre[i], train_y_pre[i], label='measured pulse timing', color='k', s=30, zorder=3)
         if test_pulse[i] >= 0.5:
-            angle = data[1][0][predict_time + i][0][episode][7]  # 実測Pxyを使用
-            dx = np.cos(angle) * 0.2
-            dy = np.sin(angle) * 0.2
-            ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='r', ec='r')
-
-    #for i in range(len(train_pulse)):
-    #    if train_pulse[i] >= 0.35:
-    #        ax.scatter(train_x_pre[i], train_y_pre[i], label='measured pulse timing', color='k', s=30, zorder=3)
-    #    if test_pulse[i] >= 0.35:
-    #        ax.scatter(test_x[i], test_y[i], label='predicted pulse timing', color='w',edgecolor = '#d62728' ,s=30, zorder=3)
+            ax.scatter(test_x[i], test_y[i], label='predicted pulse timing', color='w',edgecolor = '#d62728' ,s=30, zorder=3)
     #print(test_pulse[i])
 
     plt.xlabel('X [m]')
     plt.ylabel('Y [m]')
 
     plt.xticks([0, 1.0, 2.0, 3.0, 4.0, 4.5])
-    plt.yticks([0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
+    plt.yticks([0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 7.5])
     plt.tight_layout()
     ax.set_aspect('equal')
     # plt.legend(bbox_to_anchor=(1,1), loc='upper left')

@@ -790,6 +790,11 @@ class MACRO_VRNN(nn.Module):
                                 :,
                                 n_feat * i + 2 : n_feat * i + 4,
                             ].clone()
+
+                            p0_t1 = states[t + 1][i][
+                                :,
+                                n_feat * i : n_feat * i + 2,
+                            ].clone()
                             next_pulse = (
                                 states[t + 1][i][
                                     :,
@@ -1267,10 +1272,7 @@ class MACRO_VRNN(nn.Module):
                                 dec_std_t[:, 0:2] / fs,
                             )
                         elif acc == 0:
-                            out["L_vel"] += self.beta * batch_error(
-                                next_pos,
-                                x_t0[:, :2],
-                            )
+                            out["L_vel"] += self.beta * batch_error(v_t1, v0_t1)
                             out["L_acc"] += self.gamma1 * batch_error(
                                 a0_t1, a_t1
                             )
@@ -1350,7 +1352,7 @@ class MACRO_VRNN(nn.Module):
                             prediction_all[:, i, x_dim - 1] = dec_pulse_t[:, 0]
 
                         # error (not used when backward)
-                        out2["e_pos"] += batch_error(next_pos, x_t0[:, :2])
+                        out2["e_pos"] += batch_error(next_pos, p0_t1)
                         out2["e_vel"] += batch_error(v_t1, v0_t1)
 
                         if acc >= 2:
@@ -1725,6 +1727,11 @@ class MACRO_VRNN(nn.Module):
                             x_t0 = states[t + 1][i][
                                 :,
                                 n_feat * i + 2 : n_feat * i + 4,
+                            ].clone()
+                            
+                            p0_t1 = states[t + 1][i][
+                                :,
+                                n_feat * i : n_feat * i + 2,
                             ].clone()
                             next_pulse = (
                                 states[t + 1][i][:, n_feat * i + 5]
@@ -2248,11 +2255,7 @@ class MACRO_VRNN(nn.Module):
                             Sum,
                         )
                     elif acc == 0:
-                        out2["L_vel"][n] += batch_error(
-                            next_pos,
-                            x_t0[:, :2],
-                            Sum,
-                        )
+                        out2["L_vel"][n] += batch_error(v_t1, v0_t1, Sum)
                         out2["L_acc"][n] += batch_error(a0_t1, a_t1, Sum)
                     else:
                         out2["L_vel"][n] += batch_error(v_t1, v0_t1, Sum)  # vel
@@ -2328,7 +2331,7 @@ class MACRO_VRNN(nn.Module):
                         # error (not used when backward)
                         out["e_pos"][n] += batch_error(
                             next_pos,
-                            x_t0[:, :2],
+                            p0_t1,
                             Sum,
                         )
                         out2["e_vel"][n] += batch_error(v_t1, v0_t1, Sum)
@@ -2336,14 +2339,14 @@ class MACRO_VRNN(nn.Module):
                         if burn_in == len_time:
                             out2["e_pmax"][n, :, t] += batch_error(
                                 next_pos,
-                                x_t0[:, :2],
+                                p0_t1,
                                 Sum=False,
                             )
                             # TBD
                         else:
                             out2["e_pmax"][n, :, t - burn_in] += batch_error(
                                 next_pos,
-                                x_t0[:, :2],
+                                p0_t1, # This was already correct in some versions, ensuring it is here.
                                 Sum=False,
                             )
                             out2["e_vmax"][n, :, t - burn_in] += batch_error(

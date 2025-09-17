@@ -8,7 +8,7 @@ import statistics
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-path = r"C:\Users\yota-\OneDrive - 同志社大学\PO-MC-DHVRNN\result\predtype2"
+path = r"C:\Users\yota-\OneDrive - 同志社大学\PO-MC-DHVRNN\result\predtype2_0908"
 with open(os.path.join(path, 'params.p'), 'rb') as f: ###########
     param = np.load(f, allow_pickle=True)
     # print(param)
@@ -19,7 +19,7 @@ with open(os.path.join(path, 'samples.p'), 'rb') as f: ############
 
 # import pdb; pdb.set_trace()
 
-pp = PdfPages(os.path.join(path, 'topview.pdf')) ##########
+pp = PdfPages(os.path.join(path, 'topview_0.4.pdf')) ##########
 
 count = 0
 # ループの前で合計用の変数を初期化
@@ -66,8 +66,8 @@ for episode in range(len(data[0][0][0][0])):
                                 (data[1][0][step][0][episode][1] - data[0][0][step][0][episode][1]) ** 2))
         loss_vel.append(np.sqrt((data[1][0][step][0][episode][2] - data[0][0][step][0][episode][2])** 2 + 
                                 (data[1][0][step][0][episode][3] - data[0][0][step][0][episode][3]) ** 2))
-    print(data[1][0][step][0][episode][5])
     print(data[0][0][step][0][episode][7])
+    #print(data[0][0][step][0][episode][7])
     #print("====================")
 
     # 0.5以上の値を1に変換
@@ -158,9 +158,9 @@ for episode in range(len(data[0][0][0][0])):
     #        ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='r', ec='r')
 
     for i in range(len(train_pulse)):
-        if train_pulse[i] >= 0.5:
+        if train_pulse[i] >= 0.4:
             ax.scatter(train_x_pre[i], train_y_pre[i], label='measured pulse timing', color='k', s=30, zorder=3)
-        if test_pulse[i] >= 0.5:
+        if test_pulse[i] >= 0.4:
             ax.scatter(test_x[i], test_y[i], label='predicted pulse timing', color='w',edgecolor = '#d62728' ,s=30, zorder=3)
     #print(test_pulse[i])
 

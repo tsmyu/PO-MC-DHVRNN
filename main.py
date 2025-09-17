@@ -652,6 +652,8 @@ if __name__ == "__main__":
         game_file0 = game_file0 + "_vel"
     elif pred_type == 2:
         game_file0 = game_file0 + "_pulse"
+    elif pred_type == 3:
+        game_file0 = game_file0 + "_pulse"
 
     game_file0 = game_file0 + "_" + str(batchSize) + "_" + str(totalTimeSteps)
     print(game_file0)
@@ -675,6 +677,8 @@ if __name__ == "__main__":
         # vel + Pxy (velocity + pulse radiation direction) - 2次元のみ
         outputlen0 = 3  # 2次元速度 + 1次元Pxy
     elif pred_type == 2:
+        outputlen0 = 1
+    elif pred_type == 3:
         outputlen0 = 1
 
     # We are only looking at the most recent character each time.
@@ -701,7 +705,7 @@ if __name__ == "__main__":
 
     # test pickle load
     with open(
-        os.path.dirname(game_files) + "/dataset_pd_yubi.pkl",
+        os.path.dirname(game_files) + "/dataset_pd_yubi_add.pkl",
         "rb",
     ) as f:
         X_data_all = pickle.load(f)
@@ -713,7 +717,7 @@ if __name__ == "__main__":
     len_seqs = len(X_data_all[0])
     X_ind = np.arange(len_seqs)
     # random_state default for yubi is 41, for kiku is 42
-    ind_train, ind_val, ind_test = split_baseon_data(X_data_all)
+    ind_train, ind_val, ind_test = split_baseon_env(X_data_all)
     # ind_train, ind_test, _, _ = train_test_split(
     #     X_ind, X_ind, test_size=2 / val_devide, random_state=42
     # )
@@ -879,6 +883,8 @@ if __name__ == "__main__":
     elif pred_type == 1:
         game_file0 = game_file0 + "_vel"
     elif pred_type == 2:
+        game_file0 = game_file0 + "_pulse"
+    elif pred_type == 3:
         game_file0 = game_file0 + "_pulse"
     init_filename0 = init_filename0 + "acc_" + str(args.acc) + "_"
     init_filename0 = (

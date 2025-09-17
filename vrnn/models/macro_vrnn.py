@@ -135,6 +135,9 @@ class MACRO_VRNN(nn.Module):
         elif self.pred_type == 2:
             # this rnn_in_x is not used
             dec_out_x = x_dim
+        elif self.pred_type == 3:
+            # this rnn_in_x is not used
+            dec_out_x = x_dim
         rnn_in_x = x_dim
         in_state = embed_size * n_all_agents + embed_ball_size
 
@@ -423,9 +426,13 @@ class MACRO_VRNN(nn.Module):
                 ]
             )
         elif self.pred_type == 2:
+            self.dec_pulse = nn.ModuleList( # Sigmoidを削除
+                [nn.Sequential(nn.Linear(h_dim, 1)) for i in range(n_agents)]
+            )
+        elif self.pred_type == 3:
             self.dec_pulse = nn.ModuleList(
                 [
-                    nn.Sequential(nn.Linear(h_dim, 1), nn.Sigmoid())
+                    nn.Sequential(nn.Linear(h_dim, 1))
                     for i in range(n_agents)
                 ]
             )
@@ -653,6 +660,8 @@ class MACRO_VRNN(nn.Module):
                 out["L_rec"] = torch.zeros(1).to(device)
             elif self.pred_type == 2:
                 out["L_pulse_flag"] = torch.zeros(1).to(device)
+            elif self.pred_type == 3:
+                out["L_pulse_flag"] = torch.zeros(1).to(device)
             out2["e_pos"] = torch.zeros(1).to(device)
             out2["e_vel"] = torch.zeros(1).to(device)
             out2["e_acc"] = torch.zeros(1).to(device)
@@ -795,22 +804,33 @@ class MACRO_VRNN(nn.Module):
                                 :,
                                 n_feat * i : n_feat * i + 2,
                             ].clone()
-                            next_pulse = (
-                                states[t + 1][i][
-                                    :,
-                                    n_feat * i + 5,
-                                ]
-                                .clone()
-                                .reshape(-1, 1)
-                            )
-                            next_pxy = (
-                                states[t + 1][i][
-                                    :,
-                                    n_feat * i + 7,
-                                ]
-                                .clone()
-                                .reshape(-1, 1)
-                            )
+                            if self.pred_type == 2:
+                                next_pulse = (
+                                    states[t + 1][i][
+                                        :,
+                                        n_feat * i + 5,
+                                    ]
+                                    .clone()
+                                    .reshape(-1, 1)
+                                )
+                            elif self.pred_type == 3:
+                                next_pulse = (
+                                    states[t + 1][i][
+                                        :,
+                                        n_feat * i + 7,
+                                    ]
+                                    .clone()
+                                    .reshape(-1, 1)
+                                )
+                            else:
+                                next_pulse = (
+                                    states[t + 1][i][
+                                        :,
+                                        n_feat * i + 5,
+                                    ]
+                                    .clone()
+                                    .reshape(-1, 1)
+                                )
                             x_t0_with_pulse = torch.cat(
                                 (
                                     x_t0,
@@ -821,7 +841,7 @@ class MACRO_VRNN(nn.Module):
                             x_t0_with_pxy = torch.cat(
                                 (
                                     x_t0,
-                                    next_pxy,
+                                    next_pulse,
                                 ),
                                 dim=1,
                             )
@@ -896,9 +916,18 @@ class MACRO_VRNN(nn.Module):
                                 :,
                                 n_feat * i + 2 : n_feat * i + 4,
                             ]
-                            flag_pulse = (
+                            if self.pred_type == 2:
+                                flag_pulse = (
+                                    y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
+                                )
+                            elif self.pred_type == 3:   
+                                flag_pulse = (
+                                    y_t[:, n_feat * i + 7].clone().reshape(-1, 1)
+                                )
+                            else:
+                                flag_pulse = (
                                 y_t[:, n_feat * i + 5].clone().reshape(-1, 1)
-                            )
+                                )
                             current_vel_with_pulse = torch.cat(
                                 (
                                     current_vel,
@@ -1000,6 +1029,9 @@ class MACRO_VRNN(nn.Module):
                             elif self.pred_type == 2:
                                 # pulse timing
                                 state_in0 = flag_pulse
+                            elif self.pred_type == 3:
+                                # pulse timing
+                                state_in0 = flag_pulse
                     else:
                         state_in0 = torch.zeros(batchSize, 0).to(device)
 
@@ -1066,6 +1098,8 @@ class MACRO_VRNN(nn.Module):
                     elif self.pred_type == 1:
                         enc_x_t0 = x_t0_with_pxy
                     elif self.pred_type == 2:
+                        enc_x_t0 = next_pulse
+                    elif self.pred_type == 3:
                         enc_x_t0 = next_pulse
                     enc_in = torch.cat(
                         [
@@ -1141,6 +1175,11 @@ class MACRO_VRNN(nn.Module):
                         dec_mean_t = x_t0
                         dec_pulse_t = self.dec_pulse[i](dec_t)
 
+                    elif self.pred_type == 3:
+                        # here under concidaration
+                        dec_mean_t = x_t0
+                        dec_pulse_t = self.dec_pulse[i](dec_t)
+
                     (
                         _,
                         h_micro[i],
@@ -1156,7 +1195,13 @@ class MACRO_VRNN(nn.Module):
                     )
 
                     # objective function
-                    pulse_loss = nn.BCELoss()
+                    if self.pred_type == 2:
+                        pulse_loss = nn.BCEWithLogitsLoss() # BCELossから変更
+                    elif self.pred_type == 3:
+                        pulse_loss = nn.MSELoss()
+                    else:
+                        pulse_loss = nn.BCELoss()
+                    #pulse_loss = nn.BCELoss()
                     #pulse_loss = nn.MSELoss()
                     out["L_kl"] += kld_gauss(
                         enc_mean_t,
@@ -1185,6 +1230,11 @@ class MACRO_VRNN(nn.Module):
                         elif self.pred_type == 1:
                             prediction_all[:, i, :x_dim] = dec_mean_t[:, :x_dim]
                         elif self.pred_type == 2:
+                            out["L_pulse_flag"] += pulse_loss(
+                                dec_pulse_t,
+                                next_pulse,
+                            )
+                        elif self.pred_type == 3:
                             out["L_pulse_flag"] += pulse_loss(
                                 dec_pulse_t,
                                 next_pulse,
@@ -1349,6 +1399,8 @@ class MACRO_VRNN(nn.Module):
                         elif self.pred_type == 1:
                             prediction_all[:, i, :x_dim] = dec_mean_t[:, :x_dim]
                         elif self.pred_type == 2:
+                            prediction_all[:, i, x_dim - 1] = torch.sigmoid(dec_pulse_t[:, 0])
+                        elif self.pred_type == 3:
                             prediction_all[:, i, x_dim - 1] = dec_pulse_t[:, 0]
 
                         # error (not used when backward)
@@ -1426,6 +1478,10 @@ class MACRO_VRNN(nn.Module):
                 out["L_kl"] /= (len_time) * n_agents
                 out["L_rec"] /= (len_time) * n_agents
             elif self.pred_type == 2:
+                out["L_kl"] /= (len_time) * n_agents
+                out["L_pulse_flag"] /= (len_time) * n_agents
+            elif self.pred_type == 3:
+                out["L_kl"] /= (len_time) * n_agents
                 out["L_pulse_flag"] /= (len_time) * n_agents
             if body:
                 out["L_jrk"] /= (len_time) * n_agents
@@ -1648,6 +1704,8 @@ class MACRO_VRNN(nn.Module):
                     self.dec_mean[i] = self.dec_mean[i].to(device)
                 elif self.pred_type == 2:
                     self.dec_pulse[i] = self.dec_pulse[i].to(device)
+                elif self.pred_type == 3:
+                    self.dec_pulse[i] = self.dec_pulse[i].to(device)
 
                 if self.batchnorm:
                     self.bn_enc[i] = self.bn_enc[i].to(device)
@@ -1733,16 +1791,29 @@ class MACRO_VRNN(nn.Module):
                                 :,
                                 n_feat * i : n_feat * i + 2,
                             ].clone()
-                            next_pulse = (
-                                states[t + 1][i][:, n_feat * i + 5]
-                                .clone()
-                                .reshape(-1, 1)
-                            )
+                            if self.pred_type == 2:
+                                next_pulse = (
+                                    states[t + 1][i][:, n_feat * i + 5]
+                                    .clone()
+                                    .reshape(-1, 1)
+                                )
+                            elif self.pred_type == 3:
+                                next_pulse = (
+                                    states[t + 1][i][:, n_feat * i + 7]
+                                    .clone()
+                                    .reshape(-1, 1)
+                                )
+                            else:
+                                next_pulse = (
+                                    states[t + 1][i][:, n_feat * i + 5]
+                                    .clone()
+                                    .reshape(-1, 1)
+                                )
                             next_pxy = (
-                                states[t + 1][i][:, n_feat * i + 7]
-                                .clone()
-                                .reshape(-1, 1)
-                            )
+                                    states[t + 1][i][:, n_feat * i + 7]
+                                    .clone()
+                                    .reshape(-1, 1)
+                                )
                             x_t0_with_pulse = torch.cat(
                                 (
                                     x_t0,
@@ -1820,14 +1891,33 @@ class MACRO_VRNN(nn.Module):
                                 :,
                                 n_feat * i + 2 : n_feat * i + 4,
                             ]
-                            flag_pulse = (
+                            if self.pred_type == 2:
+                                flag_pulse = (
                                 y_t[
                                     :,
                                     n_feat * i + 5,
                                 ]
                                 .clone()
                                 .reshape(-1, 1)
-                            )
+                                )
+                            elif self.pred_type == 3:
+                                flag_pulse = (
+                                    y_t[
+                                        :,
+                                        n_feat * i + 7,
+                                    ]
+                                    .clone()
+                                    .reshape(-1, 1)
+                                )
+                            else:
+                                flag_pulse = (
+                                    y_t[
+                                        :,
+                                        n_feat * i + 5,
+                                    ]
+                                    .clone()
+                                    .reshape(-1, 1)
+                                )
                             current_vel_with_pulse = torch.cat(
                                 (
                                     current_vel,
@@ -1925,6 +2015,9 @@ class MACRO_VRNN(nn.Module):
                                 current_pxy = y_t[:, n_feat * i + 7].clone().reshape(-1, 1)
                                 state_in0 = torch.cat((current_vel, current_pxy), dim=1)
                             elif self.pred_type == 2:
+                                # pulse timing
+                                state_in0 = flag_pulse
+                            elif self.pred_type == 3:
                                 # pulse timing
                                 state_in0 = flag_pulse
                         elif acc == 3:
@@ -2081,6 +2174,8 @@ class MACRO_VRNN(nn.Module):
                             enc_x_t0 = x_t0_with_pxy
                         elif self.pred_type == 2:
                             enc_x_t0 = next_pulse
+                        elif self.pred_type == 3:
+                            enc_x_t0 = next_pulse
                         enc_in = torch.cat(
                             [
                                 enc_x_t0,
@@ -2148,8 +2243,18 @@ class MACRO_VRNN(nn.Module):
                         dec_mean_t = x_t0
                         dec_pulse_t = self.dec_pulse[i](dec_t)
                         dec_std_t = torch.zeros(dec_mean_t.shape).to(device)
+                    elif self.pred_type == 3:
+                        dec_mean_t = x_t0
+                        dec_pulse_t = self.dec_pulse[i](dec_t)
+                        dec_std_t = torch.zeros(dec_mean_t.shape).to(device)
                     # objective function
-                    pulse_loss = nn.BCELoss()
+                    if self.pred_type == 2:
+                        pulse_loss = nn.BCEWithLogitsLoss()
+                    elif self.pred_type == 3:
+                        pulse_loss = nn.MSELoss()
+                    else:
+                        pulse_loss = nn.BCELoss()
+                    #pulse_loss = nn.BCELoss()
                     #pulse_loss = nn.MSELoss()
                     # for evaluation only
                     enc_t = self.enc[i](enc_in)
@@ -2181,6 +2286,11 @@ class MACRO_VRNN(nn.Module):
                             torch.cat([x_t], 1),
                         )
                     elif self.pred_type == 2:
+                        out["L_pulse_flag"] += pulse_loss(
+                            dec_pulse_t,
+                            next_pulse,
+                        )
+                    elif self.pred_type == 3:
                         out["L_pulse_flag"] += pulse_loss(
                             dec_pulse_t,
                             next_pulse,
@@ -2326,6 +2436,8 @@ class MACRO_VRNN(nn.Module):
                             prediction_all[:, i, :x_dim] = dec_mean_t[:, :x_dim]
                             prediction_std[:, i, :x_dim] = dec_std_t[:, :x_dim]
                         elif self.pred_type == 2:
+                            prediction_all[:, i, x_dim - 1] = torch.sigmoid(dec_pulse_t[:, 0])
+                        elif self.pred_type == 3:
                             prediction_all[:, i, x_dim - 1] = dec_pulse_t[:, 0]
 
                         # error (not used when backward)
@@ -2394,6 +2506,14 @@ class MACRO_VRNN(nn.Module):
                         dec_mean_t0 = dec_mean_t
                         dec_std_t0 = dec_std_t
                     if self.pred_type == 2:
+                        del (
+                            dec_mean_t,
+                            state_in,
+                            x_t0,
+                            current_pos,
+                            y_t,
+                        )
+                    elif self.pred_type == 3:
                         del (
                             dec_mean_t,
                             state_in,
@@ -2523,6 +2643,7 @@ class MACRO_VRNN(nn.Module):
         for n in range(n_sample):
             out2["L_kl"][n] /= (len_time) * n_agents
             out["L_rec"][n] /= (len_time) * n_agents
+            out["L_pulse_flag"][n] /= (len_time) * n_agents
             out2["L_jrk"][n] /= (len_time) * n_agents
             out2["L_vel"][n] /= (len_time) * n_agents
             out2["L_acc"][n] /= (len_time) * n_agents

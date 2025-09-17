@@ -260,6 +260,8 @@ def roll_out(
         dim = 2  # 座標系は2次元（X, Y）
     elif pred_type == 2:
         next_pulse_flag = prediction_all[:, :, 0]
+    elif pred_type == 3:
+        next_pulse_flag = prediction_all[:, :, 0]
 
     # if acc == 0:  # vel
     #     next_vel = prediction_all[:, :, :2]
@@ -329,6 +331,9 @@ def roll_out(
     elif pred_type == 2:
         role_long[:, 5] = next_pulse_flag[:, roleOrder]
         dim = 2
+    elif pred_type == 3:
+        role_long[:, 7] = next_pulse_flag[:, roleOrder]
+        dim = 2
 
         # if acc >= 0 and acc < 4:
         #     role_long[:, dim : dim * 2] = next_vel[:, roleOrder, :]
@@ -381,6 +386,8 @@ def roll_out(
                 pulse_directions,
             )
         if pred_type != 2:
+            role_long[idx, 4] = theta
+        if pred_type != 3:
             role_long[idx, 4] = theta
         if prev_feature[idx, 9] >= 200:
             cross_distance[:62] = 2.0

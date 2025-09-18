@@ -406,7 +406,10 @@ class MACRO_VRNN(nn.Module):
             )
             self.dec_pulse = nn.ModuleList(
                 [
-                    nn.Sequential(nn.Linear(h_dim, 1))
+                    nn.Sequential(
+                        nn.Linear(h_dim, 1),
+                        nn.Sigmoid(),
+                    )
                     for i in range(n_agents)
                 ]
             )
@@ -426,8 +429,14 @@ class MACRO_VRNN(nn.Module):
                 ]
             )
         elif self.pred_type == 2:
-            self.dec_pulse = nn.ModuleList( # Sigmoidを削除
-                [nn.Sequential(nn.Linear(h_dim, 1)) for i in range(n_agents)]
+            self.dec_pulse = nn.ModuleList(  # Sigmoidを追加
+                [
+                    nn.Sequential(
+                        nn.Linear(h_dim, 1),
+                        nn.Sigmoid(),
+                    )
+                    for i in range(n_agents)
+                ]
             )
         elif self.pred_type == 3:
             self.dec_pulse = nn.ModuleList(
@@ -436,10 +445,6 @@ class MACRO_VRNN(nn.Module):
                     for i in range(n_agents)
                 ]
             )
-        # self.dec_pulse = nn.ModuleList(
-        #     [nn.Sequential(nn.Linear(h_dim, 1)) for i in range(n_agents)]
-        # )
-
         self.gru_micro = nn.ModuleList(
             [
                 nn.GRU(
@@ -1196,7 +1201,7 @@ class MACRO_VRNN(nn.Module):
 
                     # objective function
                     if self.pred_type == 2:
-                        pulse_loss = nn.BCEWithLogitsLoss() # BCELossから変更
+                        pulse_loss = nn.BCELoss() 
                     elif self.pred_type == 3:
                         pulse_loss = nn.MSELoss()
                     else:
@@ -2249,13 +2254,13 @@ class MACRO_VRNN(nn.Module):
                         dec_std_t = torch.zeros(dec_mean_t.shape).to(device)
                     # objective function
                     if self.pred_type == 2:
-                        pulse_loss = nn.BCEWithLogitsLoss()
+                        pulse_loss = nn.BCELoss()
                     elif self.pred_type == 3:
                         pulse_loss = nn.MSELoss()
                     else:
                         pulse_loss = nn.BCELoss()
-                    #pulse_loss = nn.BCELoss()
-                    #pulse_loss = nn.MSELoss()
+                    # pulse_loss = nn.BCELoss()
+                    # pulse_loss = nn.MSELoss()
                     # for evaluation only
                     enc_t = self.enc[i](enc_in)
                     if self.batchnorm:

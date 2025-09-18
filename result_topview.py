@@ -8,7 +8,7 @@ import statistics
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-path = r"C:\Users\yota-\OneDrive - 同志社大学\PO-MC-DHVRNN\result\predtype2_0908"
+path = r"C:\Users\yota-\OneDrive - 同志社大学\PO-MC-DHVRNN\result\0918"
 with open(os.path.join(path, 'params.p'), 'rb') as f: ###########
     param = np.load(f, allow_pickle=True)
     # print(param)
@@ -77,6 +77,9 @@ for episode in range(len(data[0][0][0][0])):
     num_zeros = train_pulse.count(0)
     num_ones = train_pulse.count(1)
     #print(f"0の数: {num_zeros}, 1の数: {num_ones}")
+    num_zeros = train_pulse.count(0) + test_pulse.count(0)
+    num_ones = train_pulse.count(1) + test_pulse.count(1)
+    print(f"Episode {episode}: 0の数: {num_zeros}, 1の数: {num_ones}")
     # 合計に加算
     total_zeros += num_zeros
     total_ones += num_ones

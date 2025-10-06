@@ -717,7 +717,7 @@ if __name__ == "__main__":
     len_seqs = len(X_data_all[0])
     X_ind = np.arange(len_seqs)
     # random_state default for yubi is 41, for kiku is 42
-    ind_train, ind_val, ind_test = split_baseon_env(X_data_all)
+    ind_train, ind_val, ind_test = split_baseon_data(X_data_all)
     # ind_train, ind_test, _, _ = train_test_split(
     #     X_ind, X_ind, test_size=2 / val_devide, random_state=42
     # )

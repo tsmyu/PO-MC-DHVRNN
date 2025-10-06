@@ -9,6 +9,8 @@ from vrnn.models.utils import (
     cudafy_list,
     index_by_agent,
     get_macro_ohe,
+)
+from vrnn.models.utils import (
     sample_gauss,
     nll_gauss,
     kld_gauss,
@@ -404,10 +406,7 @@ class MACRO_VRNN(nn.Module):
             )
             self.dec_pulse = nn.ModuleList(
                 [
-                    nn.Sequential(
-                        nn.Linear(h_dim, 1),
-                        nn.Sigmoid(),
-                    )
+                    nn.Sequential(nn.Linear(h_dim, 1))
                     for i in range(n_agents)
                 ]
             )
@@ -427,19 +426,22 @@ class MACRO_VRNN(nn.Module):
                 ]
             )
         elif self.pred_type == 2:
-            self.dec_pulse = nn.ModuleList(  # Sigmoidを追加
-                [
-                    nn.Sequential(
-                        nn.Linear(h_dim, 1),
-                        nn.Sigmoid(),
-                    )
-                    for i in range(n_agents)
-                ]
+            self.dec_pulse = nn.ModuleList( # Sigmoidを削除
+                [nn.Sequential(nn.Linear(h_dim, 1)) for i in range(n_agents)]
             )
         elif self.pred_type == 3:
             self.dec_pulse = nn.ModuleList(
                 [
                     nn.Sequential(nn.Linear(h_dim, 1))
+                    for i in range(n_agents)
+                ]
+            )
+            self.dec_pulse_std = nn.ModuleList(
+                [
+                    nn.Sequential(
+                        nn.Linear(h_dim, 1),
+                        nn.Softplus(),
+                    )
                     for i in range(n_agents)
                 ]
             )
@@ -1182,6 +1184,7 @@ class MACRO_VRNN(nn.Module):
                         # here under concidaration
                         dec_mean_t = x_t0
                         dec_pulse_t = self.dec_pulse[i](dec_t)
+                        dec_pulse_std_t = self.dec_pulse_std[i](dec_t)
 
                     (
                         _,
@@ -1199,7 +1202,7 @@ class MACRO_VRNN(nn.Module):
 
                     # objective function
                     if self.pred_type == 2:
-                        pulse_loss = nn.BCELoss() 
+                        pulse_loss = nn.BCELoss()
                     elif self.pred_type == 3:
                         pulse_loss = nn.MSELoss()
                     else:
@@ -1238,10 +1241,15 @@ class MACRO_VRNN(nn.Module):
                                 next_pulse,
                             )
                         elif self.pred_type == 3:
-                            out["L_pulse_flag"] += pulse_loss(
+                            out["L_pulse_flag"] += nll_gauss(
                                 dec_pulse_t,
+                                dec_pulse_std_t,
                                 next_pulse,
                             )
+                            # out["L_pulse_flag"] += pulse_loss(
+                            #     dec_pulse_t,
+                            #     next_pulse,
+                            # )
                     else:
                         if self.L_acc:
                             if acc == 3:

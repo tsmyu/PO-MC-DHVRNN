@@ -9,8 +9,6 @@ from vrnn.models.utils import (
     cudafy_list,
     index_by_agent,
     get_macro_ohe,
-)
-from vrnn.models.utils import (
     sample_gauss,
     nll_gauss,
     kld_gauss,

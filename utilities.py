@@ -732,7 +732,7 @@ def split_baseon_env(target_array):
     env_labels = target_array[0, :, 0, 8]
     
     # Get indices for train/val environments (1, 2, 3)
-    train_val_env_nums = [1, 2, 4]
+    train_val_env_nums = [1,2,4]
     train_val_indices = []
     for env_num in train_val_env_nums:
         indices = np.where(env_labels == env_num)[0]

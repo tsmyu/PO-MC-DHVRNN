@@ -8,7 +8,7 @@ import statistics
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-path = r"C:\Users\yota-\OneDrive - 同志社大学\PO-MC-DHVRNN\result\20251003"
+path = r"/home/batsimulation/Desktop/PO-MC-DHVRNN/result/20251013"
 with open(os.path.join(path, 'params.p'), 'rb') as f: ###########
     param = np.load(f, allow_pickle=True)
     # print(param)
@@ -66,8 +66,8 @@ for episode in range(len(data[0][0][0][0])):
                                 (data[1][0][step][0][episode][1] - data[0][0][step][0][episode][1]) ** 2))
         loss_vel.append(np.sqrt((data[1][0][step][0][episode][2] - data[0][0][step][0][episode][2])** 2 + 
                                 (data[1][0][step][0][episode][3] - data[0][0][step][0][episode][3]) ** 2))
-    #print(data[0][0][step][0][episode][7])
-    #print(data[0][0][step][0][episode][7])
+    print(data[1][0][step][0][episode][7])
+    print(data[0][0][step][0][episode][9])
     #print("====================")
 
     # 0.5以上の値を1に変換
@@ -107,20 +107,17 @@ for episode in range(len(data[0][0][0][0])):
     ax = fig.add_subplot(111)
 
 ####### yubi #######
-    #if count <= 3:
-    #    from obstacle_information.Env1 import obs_x, obs_y
-    #    ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=15, zorder=1)
-    #elif count >= 4 and count <= 13:
-    #    from obstacle_information.Env2 import obs_x, obs_y
-    #    ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=15, zorder=1)
-    #elif count >= 14 and count <= 15:
-    #    from obstacle_information.Env3 import obs_x, obs_y
-    #    ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=15, zorder=1)
-    #elif count >= 16:
-    #    from obstacle_information.Env4 import obs_x, obs_y
-    #    ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=15, zorder=1)
-    if count >= 0 and count <= 25:
+    if count <= 3:
+        from obstacle_information.Env1 import obs_x, obs_y
+        ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=15, zorder=1)
+    elif count >= 4 and count <= 13:
+        from obstacle_information.Env2 import obs_x, obs_y
+        ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=15, zorder=1)
+    elif count >= 14 and count <= 15:
         from obstacle_information.Env3 import obs_x, obs_y
+        ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=15, zorder=1)
+    elif count >= 16:
+        from obstacle_information.Env4 import obs_x, obs_y
         ax.scatter(obs_x, obs_y, marker='o', label='chain', color='#ff7f0e', s=15, zorder=1)
 
 ####### kiku #######
@@ -148,8 +145,8 @@ for episode in range(len(data[0][0][0][0])):
         x = train_x_pre[i]
         y = train_y_pre[i]
         if train_pulse[i] >= 0.5:
-            angle_deg = data[1][0][predict_time + i][0][episode][7]  # 実測Pxy (度数)
-            angle_rad = np.deg2rad(angle_deg) # 度数からラジアンに変換
+            angle_deg = data[1][0][predict_time + i][0][episode][7]  # 実測Pxy
+            angle_rad = np.deg2rad(angle_deg)
             dx = np.cos(angle_rad) * 0.2
             dy = np.sin(angle_rad) * 0.2
             ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='b', ec='b')
@@ -158,9 +155,9 @@ for episode in range(len(data[0][0][0][0])):
         x = test_x[i]
         y = test_y[i]
         # パルス放射タイミングのみ描画
-        if train_pulse[i] >= 0.5:
+        if test_pulse[i] >= 0.5:
             angle_test = data[0][0][predict_time + i][0][episode][9]  # 実測Pxyを使用
-            angle_rad_test = np.deg2rad(angle_test) # 度数からラジアンに変換
+            angle_rad_test = np.deg2rad(angle_test)
             dx = np.cos(angle_rad_test) * 0.2
             dy = np.sin(angle_rad_test) * 0.2
             ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='r', ec='r')

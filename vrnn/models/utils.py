@@ -252,7 +252,7 @@ def roll_out(
     dim = dim_x
     if pred_type == 0:
         next_vel = prediction_all[:, :, :2]
-        next_pulse_flag = prediction_all[:, :, 2]
+        next_pulse_flag = prediction_all[:, :, 0]
         dim = dim - 1
     elif pred_type == 1:
         next_vel = prediction_all[:, :, :]  # 3次元（2次元速度＋Pxy）
@@ -307,8 +307,8 @@ def roll_out(
 
     # fix role vector
     if pred_type == 0:
-        role_long[:, dim : dim * 2] = next_vel[:, roleOrder, :]
-        role_long[:, 5] = next_pulse_flag[:, roleOrder]
+        role_long[:, 2:4] = next_vel[:, roleOrder, :]
+        role_long[:, 7] = next_pulse_flag[:, roleOrder]
         role_long[:, 0:dim] = (
             prev_feature[:, roleOrder * n_feat : (roleOrder * n_feat + dim)]
             + prev_feature[
